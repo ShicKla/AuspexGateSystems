@@ -3,7 +3,8 @@
 		ver="0.4.5",
 		file="SG_Dialer0.4.5.lua",
 		url="https://raw.githubusercontent.com/ShicKla/AuspexGateSystems/master/VersionHistory/SG_Dialer0.4.5.lua",
-		note=""
+		note={"Something",
+		      "More Something"}
 	},
 	launcher={
 		ver="1.0.0",

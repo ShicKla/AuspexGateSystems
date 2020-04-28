@@ -2,11 +2,13 @@
 	dialer={
 		ver="0.4.5",
 		file="SG_Dialer0.4.5.lua",
-		url="https://pastebin.com/raw/Vk9ech3V"
+		url="https://pastebin.com/raw/Vk9ech3V",
+		note=""
 	},
 	launcher={
 		ver="1.0.0",
 		file="AuspexGateSystems.lua",
-		url="https://pastebin.com/raw/pAqHB264"
+		url="https://pastebin.com/raw/pAqHB264",
+		note=""
 	}
 }

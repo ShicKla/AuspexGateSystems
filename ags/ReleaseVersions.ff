@@ -2,7 +2,8 @@
 	dialer={
 		ver = "0.4.6",
 		file = "SG_Dialer.lua",
-		note = {},
+		note = {"Added 'Smart Dialing' System",
+                "Added Stargate Ring Display"},
         manifest = {"/ags/SG_Dialer.lua",
                     "/ags/gateRing.ff"}
 	},

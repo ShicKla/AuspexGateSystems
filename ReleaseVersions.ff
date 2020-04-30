@@ -1,15 +1,14 @@
 {
 	dialer={
-		ver="0.4.6",
-		file="SG_Dialer.lua",
-		url="https://raw.githubusercontent.com/ShicKla/AuspexGateSystems/dev/ags/SG_Dialer.lua",
-		note={"Something",
-		      "More Something"}
+		ver = "0.4.6",
+		file = "SG_Dialer.lua",
+		note = {},
+        manifest = {"/ags/SG_Dialer.lua"}
 	},
 	launcher={
-		ver="1.0.0",
-		file="AuspexGateSystems.lua",
-		url="https://raw.githubusercontent.com/ShicKla/AuspexGateSystems/dev/ags/AuspexGateSystems.lua",
-		note=""
+		ver = "1.0.1",
+		file = "AuspexGateSystems.lua",
+		note = {},
+        manifest = {"/ags/AuspexGateSystems.lua"}
 	}
 }

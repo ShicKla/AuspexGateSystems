@@ -46,7 +46,7 @@ function initialization()
       print("Found a Gate Entries database file at")
       print(UsersWorkingDir.."/gateEntries.ff")
       print("That file will no longer be used by the dialer.")
-      print("Would you like to copy your database file to the"
+      print("Would you like to copy your database file to the")
       print("AGS Install, so it can be used?")
       print("\"/ags\", and your old file will no longer be used.")
       io.write("Yes/No: ")

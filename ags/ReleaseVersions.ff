@@ -1,17 +1,17 @@
 {
-	dialer={
-		ver = "0.4.6",
-		file = "SG_Dialer.lua",
-		note = {"Added 'Smart Dialing' System",
+    dialer={
+        ver = "0.4.6",
+        file = "SG_Dialer.lua",
+        note = {"Added 'Smart Dialing' System",
                 "Added Stargate Ring Display"},
         manifest = {"/ags/SG_Dialer.lua",
                     "/ags/gateRing.ff"}
-	},
-	launcher={
-		ver = "1.0.1",
-		file = "AuspexGateSystems.lua",
-		note = {},
+    },
+    launcher={
+        ver = "1.0.1",
+        file = "AuspexGateSystems.lua",
+        note = {},
         manifest = {"/ags/AuspexGateSystems.lua",
                     "/ags/AuspexLogo.ff"}
-	}
+    }
 }

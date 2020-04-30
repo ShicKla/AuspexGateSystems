@@ -1,48 +1,126 @@
 --[[
 Created By: Augur ShicKla
-v1.0.0
+v1.1.0
 ]]--
 
 
 component = require("component")
 serialization = require("serialization")
 filesystem = require("filesystem")
+shell = require("shell")
 internet = nil
 HasInternet = component.isAvailable("internet")
 if HasInternet then internet = require("internet") end
 
-VersionsURL = "https://pastebin.com/raw/W66rzsAm"
-CurrentVersions = nil
+BranchURL = "https://raw.githubusercontent.com/ShicKla/AuspexGateSystems/dev"
+VersionsURL = BranchURL.."/ReleaseVersions.ff"
+ReleaseVersions = nil
 LocalVersions = nil
 DialerFound = false
+UsersWorkingDir = nil
+SelfFileName = string.sub(debug.getinfo(2, "S").source, 2)
+
+function initialization()
+  if not filesystem.isDirectory("/ags") then
+    print("Creating \"/ags\" directory")
+    local success, msg = filesystem.makeDirectory("/ags")
+    if success == nil then
+      io.stderr:write("Failed to created \"/ags\" directory, "..msg)
+      forceExit(false)
+    end
+  end
+  UsersWorkingDir = shell.getWorkingDirectory()
+  shell.setWorkingDirectory("/ags")
+  if not filesystem.exists("/bin/ags.lua") then
+    local agsBinFile = {"shell = require(\"shell\")",
+                        "filesystem = require(\"filesystem\")",
+                        "if filesystem.exists(\"/ags/AuspexGateSystems.lua\") then",
+                        "  shell.execute(\"/ags/AuspexGateSystems.lua\")",
+                        "else",
+                        "  io.stderr:write(\"Auspex Gate Systems is Not Correctly Installed\\n\")",
+                        "end"}
+    local file = io.open("/bin/ags.lua", "w")
+    for i,v in ipairs(agsBinFile) do file:write(v.."\n") end
+    file:close()
+  end 
+  if SelfFileName ~= "/ags/AuspexGateSystems.lua" then
+    print("The Auspex Gate Systems Launcher is running from")
+    print("the wrong directory, and it will be copied to")
+    print("\"/ags\", if it does not already exist.")
+    print("Please use the 'ags' system command to run the")
+    print("launcher.")
+    if not filesystem.exists("/ags/AuspexGateSystems.lua") then
+        local success, msg = filesystem.copy(SelfFileName, "/ags/AuspexGateSystems.lua")
+        if success == nil then
+          io.stderr:write(msg)
+          forceExit(false)
+        end
+    end
+    forceExit(true)
+  end
+  if not filesystem.exists("/ags/installedVersions.ff") then
+    if filesystem.exists(UsersWorkingDir.."/ags.ff") then
+      print("Moving ags.ff file")
+      local success, msg = filesystem.copy(UsersWorkingDir.."/ags.ff", "/ags/installedVersions.ff")
+      if success then
+        filesystem.remove(UsersWorkingDir.."/ags.ff")
+      elseif success == nil then
+        io.stderr:write(msg)
+        forceExit(false)
+      end
+    end
+  end
+  if not filesystem.exists("/ags/gateEntries.ff") then
+    if filesystem.exists(UsersWorkingDir.."/gateEntries.ff") then
+      print("Your gateEntries.ff file will be copied to")
+      print("\"/ags\", and your old file will no longer be used.")
+      io.write("Press Enter to Continue")
+      io.read()
+      local success, msg = filesystem.copy(UsersWorkingDir.."/gateEntries.ff", "/ags/gateEntries.ff")
+      if success == nil then
+        io.stderr:write(msg)
+        forceExit(false)
+      end
+    end
+  end
+end
+
+function displayLogo()
+  
+end
+
+function forceExit(code)
+  if UsersWorkingDir ~= nil then shell.setWorkingDirectory(UsersWorkingDir) end
+  os.exit(code)
+end
 
 function getCurrentVersions()
   local result = ""
-  CurrentVersions = {}
+  ReleaseVersions = {}
   local response = internet.request(VersionsURL)
   local isGood = pcall(function() 
     for chunk in response do
       result = result..chunk
     end
-    CurrentVersions = serialization.unserialize(result)
+    ReleaseVersions = serialization.unserialize(result)
   end)
   if not isGood then
     io.stderr:write("Version Check Failed")
-    os.exit()
+    forceExit(false)
   end
 end
 
 function readVersionFile()
-  local file = io.open("ags.ff", "r")
+  local file = io.open("/ags/installedVersions.ff", "r")
   if file == nil then
     if HasInternet then
-      file = io.open("ags.ff", "w")
-      file:write(serialization.serialize(CurrentVersions))
+      file = io.open("/ags/installedVersions.ff", "w")
+      file:write(serialization.serialize(ReleaseVersions))
       file:close()
-      file = io.open("ags.ff", "r")
+      file = io.open("/ags/installedVersions.ff", "r")
     else
       io.stderr:write("Version Information Missing. Need Internet to Download")
-      os.exit()
+      forceExit(false)
     end
   end
   LocalVersions = serialization.unserialize(file:read("*a"))
@@ -50,29 +128,36 @@ function readVersionFile()
 end
 
 function saveVersionFile()
-  local file = io.open("ags.ff", "w")
+  local file = io.open("/ags/installedVersions.ff", "w")
   file:write(serialization.serialize(LocalVersions))
   file:close()
 end
 
 function compareVersions()
-  if isVersionGreater(LocalVersions.launcher.ver, CurrentVersions.launcher.ver) then
+  if isVersionGreater(LocalVersions.launcher.ver, ReleaseVersions.launcher.ver) then
     print("Launcher needs to update, please wait.")
-    downloadFile(CurrentVersions.launcher.url, CurrentVersions.launcher.file)
-    print("Launcher has been updated and will need to be restarted")
-    LocalVersions.launcher = CurrentVersions.launcher
+    downloadManifestedFiles(ReleaseVersions.launcher)
+    print("Launcher has been updated and will restart")
+    LocalVersions.launcher = ReleaseVersions.launcher
     saveVersionFile()
-    os.exit()
+    shell.setWorkingDirectory(UsersWorkingDir)
+    shell.execute("/ags/AuspexGateSystems.lua")
+    forceExit(true)
   end  
-  if isVersionGreater(LocalVersions.dialer.ver, CurrentVersions.dialer.ver) then
-    print("There is a new version of the Dialer. Would you like to update?")
-    io.write("Yes/No : ")
+  if isVersionGreater(LocalVersions.dialer.ver, ReleaseVersions.dialer.ver) then
+    print("There is a new version of the Dialer. ")
+    if #ReleaseVersions.dialer.note > 0 then
+      print("Changes:")
+      for i,v in ipairs(ReleaseVersions.dialer.note) do print("  "..v) end
+      print()
+    end
+    io.write("Would you like to update, yes or no? ")
     local userInput = io.read(1)
     if userInput:lower() == "y" then
       print("Downloading Dialer Program, Please Wait")
-      downloadFile(CurrentVersions.dialer.url, CurrentVersions.dialer.file)
+      downloadManifestedFiles(ReleaseVersions.dialer)
       print("Dialer Program Has Been Downloaded")
-      LocalVersions.dialer = CurrentVersions.dialer
+      LocalVersions.dialer = ReleaseVersions.dialer
       saveVersionFile()
     end
   else
@@ -92,17 +177,21 @@ function isVersionGreater(oldVer, newVer)
 end
 
 function checkForDialer()
-  DialerFound = filesystem.exists(os.getenv("PWD").."/"..LocalVersions.dialer.file)
+  DialerFound = filesystem.exists("/ags/SG_Dialer.lua")
   if not DialerFound then
     print("Downloading Dialer Program, Please Wait")
-    downloadFile(CurrentVersions.dialer.url, CurrentVersions.dialer.file)
+    downloadManifestedFiles(ReleaseVersions.dialer)
     print("Dialer Program Has Been Downloaded")
   end
 end
 
-function downloadFile(url, fileName)
+function downloadManifestedFiles(program)
+  for i,v in ipairs(program.manifest) do downloadFile(v) end
+end
+
+function downloadFile(fileName)
   local result = ""
-  local response = internet.request(url)
+  local response = internet.request(BranchURL..fileName)
   local isGood, err = pcall(function()
     local file, err = io.open(fileName, "w")
     if file == nil then error(err) end
@@ -113,21 +202,24 @@ function downloadFile(url, fileName)
   end)
   if not isGood then
     io.stderr:write("Unable to Download\n")
-    error(err)
-    os.exit()
+    io.stderr:write(err)
+    forceExit(false)
   end
 end
 
-
+term.clear()
 if HasInternet then
-  print("Running in Online Mode")
+  print("Running in Online Mode\n")
   getCurrentVersions()
 else
-  print("Running in Offline Mode")
+  print("Running in Offline Mode\n")
 end
+initialization()
 readVersionFile()
-if CurrentVersions ~= nil then compareVersions() end
+if ReleaseVersions ~= nil then compareVersions() end
 
 
 print("Launching Dialer")
 dofile(LocalVersions.dialer.file)
+
+shell.setWorkingDirectory(UsersWorkingDir) -- Returns the user back to their original working directory

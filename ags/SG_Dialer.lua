@@ -1,6 +1,6 @@
 --[[
 Created By: Augur ShicKla
-v0.4.6
+v0.5.0
 
 System Requirements:
 Tier 3.5 Memory
@@ -8,6 +8,7 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
+Version = "0.5.0"
 c = require("component")
 computer = require("computer")
 event = require("event")
@@ -17,6 +18,7 @@ thread = require("thread")
 serialization = require("serialization")
 unicode = require("unicode")
 filesystem = require("filesystem")
+screen = c.screen
 gpu = c.gpu
 
 
@@ -224,6 +226,7 @@ end
 
 function clearDisplay()
   for k in pairs(buttons) do buttons[k]:hide() end
+  gateRingDisplay.isActive = false
   gpu.fill(41, 2, 120-(2*glyphListWindow.width), 42, " ")
 end
 
@@ -681,7 +684,7 @@ function directDial()
   if #AddressBuffer < 6 then
     alert("ENTERED ADDRESS TOO SHORT", 2)
   else
-    dialAddress(directEntry)
+    dialAddress(directEntry, 0)
   end
   isDirectDialing = false
 end
@@ -691,12 +694,12 @@ end
 dialAddressWindow = {xPos= 42, yPos=5, width= 80, height=30, glyph=""}
 function dialAddressWindow.display(adr)
   local self = dialAddressWindow
-  gpu.fill(self.xPos, self.yPos, self.width, self.height, " ")
+  gpu.fill(self.xPos, self.yPos, self.width, 3, " ") --self.height
   gpu.set(self.xPos, self.yPos, "Dialing: "..adr.name)
   gpu.set(self.xPos, self.yPos+1, "Engaging "..self.glyph.."... ")
 end
 
-function dialAddress(gateEntry)
+function dialAddress(gateEntry, num)
   if gateEntry == nil then
     alert("NO GATE ENTRY SELECTED", 2)
     return
@@ -720,15 +723,8 @@ function dialAddress(gateEntry)
   end
   AddressBuffer = {}
   for i,v in ipairs(gateEntry.gateAddress[GateType]) do table.insert(AddressBuffer, v) end
-  if GateType == "MW" then
-    table.insert(AddressBuffer,"Point of Origin")
-  elseif GateType == "UN" then
-    table.insert(AddressBuffer,"Glyph 17")
-  end  
   -- local requirement, msg = sg.getEnergyRequiredToDial(AddressBuffer) -- Broken in Lua 5.3
-  -- Temp Workaround --
-  local requirement, msg = sg.getEnergyRequiredToDial(table.unpack(AddressBuffer))
-  -- End of Temp Workaround --
+  local requirement, msg = sg.getEnergyRequiredToDial(table.unpack(AddressBuffer)) -- Temp Workaround
   if type(requirement) == "string" then
     if requirement == "address_malformed" then
       if entriesDuplicateCheck(localAddress, {gateEntry}, GateType, 1) then
@@ -747,16 +743,34 @@ function dialAddress(gateEntry)
     alert(tostring("\""..msg.."\" RETURNED FROM getEnergyRequiredToDial()"), 3)
     return
   end
+  -- Smart Dialing --
+  if #AddressBuffer > 6 then
+    local shorterAdr = {}
+    for i=1,6 do table.insert(shorterAdr, AddressBuffer[i]) end
+    for i=7,8 do
+      requirement, msg = sg.getEnergyRequiredToDial(table.unpack(shorterAdr))
+      if type(requirement) == "table" then
+        alert("SMART DIALING ACTIVE", 1)
+        break
+      else
+        table.insert(shorterAdr, AddressBuffer[i])
+      end
+    end
+    AddressBuffer = {}
+    for i,v in ipairs(shorterAdr) do table.insert(AddressBuffer, v) end
+  end
+  -- End of Smart Dialing --
+  if GateType == "MW" then
+    table.insert(AddressBuffer,"Point of Origin")
+  elseif GateType == "UN" then
+    table.insert(AddressBuffer,"Glyph 17")
+  end  
   clearDisplay()
+  gateRingDisplay.draw()
   glyphListWindow.reset()
   buttons.abortDialingButton:display()
   DialingModeInterlocked = true
   AbortingDialing = false
-  -- if GateType == "MW" then
-    -- table.insert(AddressBuffer,"Point of Origin")
-  -- elseif GateType == "UN" then
-    -- table.insert(AddressBuffer,"Glyph 17")
-  -- end
   glyphListWindow.locked = true
   dialNext(0)
   while DialingModeInterlocked do
@@ -1088,16 +1102,22 @@ EventListeners = {
   end),
 
   eventSpinEngaged = event.listen("stargate_spin_chevron_engaged", function(evname, address, caller, num, lock, glyph)  
-    if DialingModeInterlocked and not AbortingDialing then
+    if DialingModeInterlocked then
       if lock then
         alert("CHEVRON "..math.floor(num).." LOCKED", 1)
-        sg.engageGate()
+        gateRingDisplay.setChevron(7, true)
+        if not AbortingDialing then sg.engageGate() end
         os.sleep()
         DialingModeInterlocked = false
       else
         alert("CHEVRON "..math.floor(num).." ENGAGED", 0)
+        if #AddressBuffer > 7 and num > 6 then
+          gateRingDisplay.setChevron(num+1, true)
+        else
+          gateRingDisplay.setChevron(num, true)
+        end
         os.sleep()
-        dialNext(num)
+        if not AbortingDialing then dialNext(num) end
       end
     end
   end),
@@ -1115,6 +1135,7 @@ EventListeners = {
     UNGateResetting = true
     alert("CONNECTION HAS CLOSED", 1)
     while sg.getGateStatus() == "unstable" do os.sleep() end
+    gateRingDisplay.resetChevrons()
     if GateType == "UN" then
       alert("STARGATE IS RESETTING", 1)
       while sg.getGateStatus() == "dialing" do os.sleep() end
@@ -1128,8 +1149,12 @@ EventListeners = {
     UNGateResetting = false
   end),
 
-  incomingEvent = event.listen("stargate_incoming_wormhole", function()
+  incomingEvent = event.listen("stargate_incoming_wormhole", function(evname, address, caller, dialedAddressSize)
     alert("INCOMING WORMHOLE", 2)
+    for i=1,dialedAddressSize do gateRingDisplay.chevronStates[i] = true end
+    if gateRingDisplay.isActive then
+      for i,v in ipairs(gateRingDisplay.chevronStates) do gateRingDisplay.setChevron(i, v) end
+    end
   end),
 
   failEvent = event.listen("stargate_failed", function(evname, address, caller, reason)
@@ -1143,6 +1168,7 @@ EventListeners = {
         end
       end
       while sg.getGateStatus() == "failing" do os.sleep() end
+      gateRingDisplay.resetChevrons()
       if GateType == "UN" then
         alert("STARGATE IS RESETTING", 1)
         while sg.getGateStatus() == "dialing" do os.sleep() end
@@ -1176,6 +1202,13 @@ EventListeners = {
       help.toggle()
     end
     if code == 88 then toggleDebugMode() end -- F12 to toggle debug
+    if code == 62 and not screen.isTouchModeInverted() then
+      alert("TOUCH SCREEN MODE ACTIVATED", 1)
+      screen.setTouchModeInverted(true)
+    elseif code == 62 and screen.isTouchModeInverted() then
+      alert("TOUCH SCREEN MODE DEACTIVATED", 1)
+      screen.setTouchModeInverted(false)
+    end
   end),
 
   touchEvent = event.listen("touch", function(evname, screenAddress, x, y, button, playerName)
@@ -1208,14 +1241,23 @@ EventListeners = {
 
 -- Buttons -------------------------------------------------------------------------
 buttons = {
-  quitButton = Button.new(73, 2, 0, 3, "Quit", function()
+  quitButton = Button.new(77, 2, 0, 3, "Quit", function()
     MainLoop = false
     MainHold = false
   end),
-  dialButton = Button.new(41, 2, 0, 3, "Dial", function()
+  dialButton = Button.new(41, 2, 0, 3, "  Dial  ", function()
     dialAddress(gateEntries[GateEntriesWindow.selectedIndex])
   end),
-  editButton = Button.new(60, 2, 0, 3, "Edit Entry", function()
+  dial7GlyphsButton = Button.new(41, 4, 0, 3, "7 Glyphs", function()
+    dialAddress(gateEntries[GateEntriesWindow.selectedIndex], 7)
+  end, false),
+  dial8GlyphsButton = Button.new(41, 6, 0, 3, "8 Glyphs", function()
+    dialAddress(gateEntries[GateEntriesWindow.selectedIndex], 8)
+  end, false),
+  dial9GlyphsButton = Button.new(41, 8, 0, 3, "9 Glyphs", function()
+    dialAddress(gateEntries[GateEntriesWindow.selectedIndex], 9)
+  end, false),
+  editButton = Button.new(64, 2, 0, 3, "Edit Entry", function()
       editGateEntry(GateEntriesWindow.selectedIndex)
   end),
   renameButton = Button.new(41, 21, 0, 3, "Rename Entry", function()
@@ -1230,7 +1272,7 @@ buttons = {
   deleteNoButton = Button.new(59, 25, 0, 3, " No  ", function()
     deleteGateEntry(-1)
   end, false),
-  closeGateButton = Button.new(80, 2, 0, 3, "Close Gate", function()
+  closeGateButton = Button.new(84, 2, 0, 3, "Close Gate", function()
     local s,f = sg.disengageGate()
     if f == "stargate_failure_wrong_end" then
       alert("CAN NOT CLOSE AN INCOMING CONNECTION", 2)
@@ -1239,7 +1281,7 @@ buttons = {
     end
     buttons.closeGateButton:hide()
   end),
-  addEntryButton = Button.new(48, 2, 0, 3, "Add Entry", function()
+  addEntryButton = Button.new(52, 2, 0, 3, "Add Entry", function()
     addNewGateEntry()
   end),
   abortDialingButton = Button.new(41, 2, 0, 3, "Abort Dialing", function()
@@ -1284,11 +1326,31 @@ buttons = {
 -- Help Window ---------------------------------------------------------------------
 help = {visible=false}
 function help.toggle()
+  local helpMessage = {
+    "DIALING:",
+    " To dial out select a Gate Entry from the list to the left, and click the",
+    " 'Dial' button. You can also directly enter an address with the glyphs to",
+    " the right, then click 'Origin' to begin dialing.",
+    " ",
+    "ADD ENTRY:",
+    " To add a Gate to the 'Gate Entries' list click the 'Add Entry' button and",
+    " follow the prompts.",
+    " ",
+    "EDIT ENTRY:",
+    " To edit a Gate Entry, select it from the list and click the 'Edit Entry'",
+    " button. On the 'Edit Entry' screen you can rename the entry, delete it, or",
+    " change it's gate addresses.",
+    " ",
+    "KEY BINDS:",
+    " F4: Toggles Touch Screen Mode",
+    " F12: Toggles Debug Information",
+    " Ctrl+Q: Closes the Dialer Program"
+  }
   local self = help
   self.xPos = 41
   self.yPos = 5
   self.width = 80
-  self.height = 15
+  self.height = 2 + #helpMessage
   if self.visible then
     self.visible = false
     MainHold = false
@@ -1299,18 +1361,9 @@ function help.toggle()
     gpu.set(self.xPos, self.yPos+self.height-1, "╚══════════════════════════════════════════════════════════════════════════════╝")
     gpu.fill(self.xPos, self.yPos+1, 1, self.height-2, "║")
     gpu.fill(self.xPos+self.width-1, self.yPos+1, 1, self.height-2, "║")
-    gpu.set(self.xPos+1, self.yPos+1, "DIALING:")
-    gpu.set(self.xPos+2, self.yPos+2, "To dial out select a Gate Entry from the list to the left, and click the")
-    gpu.set(self.xPos+2, self.yPos+3, "'Dial' button. You can also directly enter an address with the glyphs to")
-    gpu.set(self.xPos+2, self.yPos+4, "the right, then click 'Origin' to begin dialing.")
-    gpu.set(self.xPos+1, self.yPos+6, "ADD ENTRY:")
-    gpu.set(self.xPos+2, self.yPos+7, "To add a Gate to the 'Gate Entries' list click the 'Add Entry' button and")
-    gpu.set(self.xPos+2, self.yPos+8, "follow the prompts.")
-    gpu.set(self.xPos+1, self.yPos+10, "EDIT ENTRY:")
-    gpu.set(self.xPos+2, self.yPos+11, "To edit a Gate Entry, select it from the list and click the 'Edit Entry'")
-    gpu.set(self.xPos+2, self.yPos+12, "button. On the 'Edit Entry' screen you can rename the entry, delete it, or")
-    gpu.set(self.xPos+2, self.yPos+13, "change it's gate addresses.")
-    -- gpu.set(self.xPos+40, self.yPos+self.height-2, "Height: "..self.height.." Width: "..self.width) -- For Debug
+    for i,line in ipairs(helpMessage) do
+      gpu.set(self.xPos+1, self.yPos+i, line)
+    end
   end
 end
 -- End of Help Window --------------------------------------------------------------
@@ -1319,7 +1372,9 @@ end
 function toggleDebugMode()
     if not DebugMode then
       DebugMode = true
+      alert("DEBUG MODE ACTIVATED", 1)
     elseif DebugMode then
+      alert("DEBUG MOD DEACTIVATED", 1)
       DebugMode = false
       os.sleep()
       gpu.fill(150, 43, 10, 1, " ")
@@ -1376,9 +1431,10 @@ debugWindowThread = thread.create(function()
     gpu.fill(3, 48, 40, 1, " ")
     if DebugMode then
       gpu.fill(48, 45, 110, 4, " ")
-      gpu.set(48, 45, "DialerInterlocked: "..tostring(DialerInterlocked)) -- For Debug
-      gpu.set(48, 46, "DialingModeInterlocked: "..tostring(DialingModeInterlocked)) -- For Debug
-      gpu.set(48, 47, "dialerAdrEntryMode: "..tostring(dialerAdrEntryMode)) -- For Debug
+      gpu.set(48, 45, "Dialer Version: "..Version) -- For Debug
+      gpu.set(48, 46, "DialerInterlocked: "..tostring(DialerInterlocked)) -- For Debug
+      gpu.set(48, 47, "DialingModeInterlocked: "..tostring(DialingModeInterlocked)) -- For Debug
+      gpu.set(48, 48, "dialerAdrEntryMode: "..tostring(dialerAdrEntryMode)) -- For Debug
       gpu.set(84, 45, "glyphListWindow.locked: "..tostring(glyphListWindow.locked)) -- For Debug
       gpu.set(84, 47, "Gate Status: "..tostring(GateStatusString).." | "..tostring(GateStatusBool)) -- For Debug
       gpu.set(84, 48, "Drive Usage: "..used.."/"..total.." "..math.floor((used/total)*100).."%") -- For Debug
@@ -1389,9 +1445,151 @@ end)
 }
 -- End of Thread Creation ----------------------------------------------------------
 
+gateRingDisplay = {}
+function gateRingDisplay.initialize()
+  local self = gateRingDisplay
+  self.isActive = false
+  self.chevronStates = {}
+  for i=1,9 do table.insert(self.chevronStates, false) end
+  self.ringTbl = {}
+  self.chevTbl = {"⢤⣤⣤⣤⣤⡤","⠀⢻⣿⣿⡟","⠀⠀⢻⡟"}
+  self.dotTbl = {"⢀⣴⣶⣦⡀","⣿⣿⣿⣿⣿","⠈⠻⠿⠟⠁"}
+  self.dot2Tbl = {"⣠⣾⣿⣷⣄", "⢿⣿⣿⣿⡿", "⠙⠛⠋"}
+  if GateType == "MW" then
+    self.offColor = 0x662400
+    self.onColor = 0x994900
+    self.ringColor = 0x4B4B4B
+  else
+    self.offColor = 0xA5A5A5
+    self.onColor = 0xF0F0F0
+    self.ringColor = 0x3C3C3C
+  end
+  local file = io.open("gateRing.ff", "r")
+  for line in file:lines() do table.insert(self.ringTbl, line) end
+  file:close()
+end
+
+function gateRingDisplay.draw()
+  local self = gateRingDisplay
+  self.isActive = true
+  gpu.setForeground(self.ringColor)
+  for i,v in ipairs(self.ringTbl) do
+    gpu.set(50, 7+i, v)
+  end
+  for i,v in ipairs(self.chevronStates) do self.setChevron(i, v) end
+end
+
+function gateRingDisplay.resetChevrons()
+  local self = gateRingDisplay
+  for i,v in ipairs(self.chevronStates) do self.chevronStates[i] = false end
+  if self.isActive then
+    for i,v in ipairs(self.chevronStates) do self.setChevron(i, v) end
+  end
+end
+
+function gateRingDisplay.setChevron(num, isEngaged)
+  local self = gateRingDisplay
+  local stateColor = nil
+  self.chevronStates[num] = isEngaged
+  if isEngaged then stateColor = self.onColor
+  else stateColor = self.offColor end
+  gpu.setBackground(self.ringColor)
+  gpu.setForeground(stateColor)
+  if num == 1 then
+    for i,v in ipairs(self.dotTbl) do -- 1
+      gpu.set(93, 10+i, v)
+    end
+  elseif num == 2 then
+    for i,v in ipairs(self.dotTbl) do -- 2
+      gpu.set(103, 17+i, v)
+    end
+  elseif num == 3 then
+    for i,v in ipairs(self.dotTbl) do -- 3
+      gpu.set(101, 26+i, v)
+    end
+  elseif num == 4 then
+    for i,v in ipairs(self.dotTbl) do -- 4
+      gpu.set(54, 26+i, v)
+    end
+  elseif num == 5 then
+    for i,v in ipairs(self.dotTbl) do -- 5
+      gpu.set(52, 17+i, v)
+    end
+  elseif num == 6 then
+    for i,v in ipairs(self.dotTbl) do -- 6
+      gpu.set(62, 10+i, v)
+    end
+  elseif num == 7 then
+    for i,v in ipairs(self.chevTbl) do -- 7
+      gpu.set(77, 7+i, v)
+    end
+  elseif num == 8 then
+    for i,v in ipairs(self.dot2Tbl) do -- 8
+      if i ~= 3 then gpu.set(88, 33+i, v)
+      else gpu.set(89, 33+i, v) end
+    end
+  elseif num == 9 then
+    for i,v in ipairs(self.dot2Tbl) do -- 9
+      if i ~= 3 then gpu.set(67, 33+i, v)
+      else gpu.set(68, 33+i, v) end
+    end
+  end
+  gpu.setBackground(0x000000)
+  gpu.setForeground(0xFFFFFF)
+end
+
+-- function drawGate()
+  -- local ringTbl = {}
+  -- local chevTbl = {"⢶⣶⣶⣶⣶⡶","⠀⢻⣿⣿⡟","⠀⠀⢻⡟"}
+  -- local dotTbl = {"⢀⣴⣶⣦⡀","⣿⣿⣿⣿⣿","⠈⠻⠿⠟⠁"}
+  -- local dot2Tbl = {"⣠⣾⣿⣷⣄", "⢿⣿⣿⣿⡿", "⠙⠛⠋"}
+  -- local file = io.open("gateRing.ff", "r")
+  -- for line in file:lines() do table.insert(ringTbl, line) end
+  -- file:close()
+  -- gpu.setForeground(0x5A5A5A)
+  -- for i,v in ipairs(ringTbl) do
+    -- gpu.set(50, 7+i, v)
+  -- end
+  -- gpu.setBackground(0x5A5A5A)
+  -- gpu.setForeground(0x662400)
+  -- for i,v in ipairs(chevTbl) do -- 7
+    -- gpu.set(77, 7+i, v)
+  -- end
+  -- for i,v in ipairs(dotTbl) do -- 6
+    -- gpu.set(62, 10+i, v)
+  -- end
+  -- for i,v in ipairs(dotTbl) do -- 1
+    -- gpu.set(93, 10+i, v)
+  -- end
+  -- for i,v in ipairs(dotTbl) do -- 5
+    -- gpu.set(52, 17+i, v)
+  -- end
+  -- for i,v in ipairs(dotTbl) do -- 2
+    -- gpu.set(103, 17+i, v)
+  -- end
+  -- for i,v in ipairs(dotTbl) do -- 4
+    -- gpu.set(54, 26+i, v)
+  -- end
+  -- for i,v in ipairs(dotTbl) do -- 3
+    -- gpu.set(101, 26+i, v)
+  -- end
+  -- for i,v in ipairs(dot2Tbl) do -- 9
+    -- if i ~= 3 then gpu.set(67, 33+i, v)
+    -- else gpu.set(68, 33+i, v) end
+  -- end
+  -- for i,v in ipairs(dot2Tbl) do -- 8
+    -- if i ~= 3 then gpu.set(88, 33+i, v)
+    -- else gpu.set(89, 33+i, v) end
+  -- end
+  -- gpu.setForeground(0xFFFFFF)
+  -- gpu.setBackground(0x000000)
+-- end
+
+gateRingDisplay.initialize()
 function mainInterface()
   clearDisplay()
   MainHold = true
+  gateRingDisplay.draw()
   if glyphListWindow.glyphType ~= GateType then glyphListWindow.initialize(GateType) end
   if sg.getGateStatus == "open" then glyphListWindow.showAddress() end
   glyphListWindow.display()
@@ -1426,6 +1624,7 @@ for k,v in pairs(EventListeners) do
   -- print("Canceling: "..v..":"..k) -- For Debug
   event.cancel(v)
 end
+screen.setTouchModeInverted(false)
 -- End of Clean Up -----------------------------------------------------------------
 if not HadNoError then io.stderr:write("\n"..ErrorString.."\n") end
 print("Dialer Program Closed")

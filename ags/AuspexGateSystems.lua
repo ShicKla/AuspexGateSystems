@@ -24,14 +24,6 @@ DisplayChangeLog = false
 SelfFileName = string.sub(debug.getinfo(2, "S").source, 2)
 
 function initialization()
-  if not filesystem.isDirectory("/ags") then
-    -- print("Creating \"/ags\" directory") -- For Debug
-    local success, msg = filesystem.makeDirectory("/ags")
-    if success == nil then
-      io.stderr:write("Failed to created \"/ags\" directory, "..msg)
-      forceExit(false)
-    end
-  end
   displayLogo()
   if HasInternet then
     print("Running in Online Mode\n")
@@ -42,44 +34,35 @@ function initialization()
   end
   UsersWorkingDir = shell.getWorkingDirectory()
   shell.setWorkingDirectory("/ags/")
-  if not filesystem.exists("/bin/ags.lua") then
-    local agsBinFile = {"shell = require(\"shell\")",
-                        "filesystem = require(\"filesystem\")",
-                        "if filesystem.exists(\"/ags/AuspexGateSystems.lua\") then",
-                        "  shell.execute(\"/ags/AuspexGateSystems.lua\")",
-                        "else",
-                        "  io.stderr:write(\"Auspex Gate Systems is Not Correctly Installed\\n\")",
-                        "end"}
-    local file = io.open("/bin/ags.lua", "w")
-    for i,v in ipairs(agsBinFile) do file:write(v.."\n") end
-    file:close()
-  end 
   if SelfFileName ~= "/ags/AuspexGateSystems.lua" then
     print("The Auspex Gate Systems Launcher is running from")
     print("the wrong directory")
-    if not filesystem.exists("/ags/AuspexGateSystems.lua") then
-        print("Launcher will be copied to \"/ags\"")
-        local success, msg = filesystem.copy(SelfFileName, "/ags/AuspexGateSystems.lua")
-        if success == nil then
-          io.stderr:write(msg)
-          forceExit(false)
-        end
-    end
     print("Please use the 'ags' system command to run the")
     print("launcher.")
     forceExit(true)
   end
   if not filesystem.exists("/ags/gateEntries.ff") then
     if filesystem.exists(UsersWorkingDir.."/gateEntries.ff") then
-      print("Your gateEntries.ff file will be copied to")
+      print("Found a Gate Entries database file at")
+      print(UsersWorkingDir.."/gateEntries.ff")
+      print("That file will no longer be used by the dialer.")
+      print("Would you like to copy your database file to the"
+      print("AGS Install, so it can be used?")
       print("\"/ags\", and your old file will no longer be used.")
-      io.write("Press Enter to Continue ")
-      io.read()
-      local success, msg = filesystem.copy(UsersWorkingDir.."/gateEntries.ff", "/ags/gateEntries.ff")
-      if success == nil then
-        io.stderr:write(tostring(msg))
-        forceExit(false)
-      end
+      io.write("Yes/No: ")
+      local userInput = io.read()
+      userInput = userInput:lower()
+      userInput = userInput:sub(1,1)
+      if userInput ~= "y" then
+        local success, msg = filesystem.copy(UsersWorkingDir.."/gateEntries.ff", "/ags/gateEntries.ff")
+        if success == nil then
+          io.stderr:write(tostring(msg))
+          forceExit(false)
+        end
+        print("Database file has been copied")
+      else
+        print("Database file will not be copied")
+      end      
     end
   end
 end
@@ -151,15 +134,15 @@ function compareVersions()
     shell.execute("/ags/AuspexGateSystems.lua")
     forceExit(true)
   end  
-  if isVersionGreater(LocalVersions.dialer.ver, ReleaseVersions.dialer.ver) then
+  if LocalVersions.dialer ~= nil and isVersionGreater(LocalVersions.dialer.ver, ReleaseVersions.dialer.ver) then
     print("There is a new version of the Dialer. ")
     changelogShow()
     io.write("Would you like to update, yes or no? ")
     local userInput = io.read(1)
     if userInput:lower() == "y" then
-      print("Downloading Dialer Program, Please Wait")
+      print("Updating Dialer Program, Please Wait")
       downloadManifestedFiles(ReleaseVersions.dialer)
-      print("Dialer Program Has Been Downloaded")
+      print("Dialer Program Has Been Updated")
       LocalVersions.dialer = ReleaseVersions.dialer
       saveVersionFile()
     end
@@ -180,16 +163,13 @@ function isVersionGreater(oldVer, newVer)
 end
 
 function checkForDialer()
-  DialerFound = filesystem.exists("/ags/SG_Dialer.lua")
-  if not DialerFound then
-    if DisplayChangeLog then
-      changelogShow()
-      io.write("Press Enter to Continue ")
-      io.read()
-    end
-    print("Downloading Dialer Program, Please Wait")
+  if not filesystem.exists("/ags/SG_Dialer.lua") then
+    changelogShow()
+    io.write("Press Enter to Continue ")
+    io.read()
+    print("Installing Dialer Program, Please Wait")
     downloadManifestedFiles(ReleaseVersions.dialer)
-    print("Dialer Program Has Been Downloaded")
+    print("Dialer Program Has Been Installed")
   end
 end
 

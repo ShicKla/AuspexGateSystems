@@ -9,26 +9,36 @@ serialization = require("serialization")
 filesystem = require("filesystem")
 shell = require("shell")
 term = require("term")
+gpu = component.gpu
 internet = nil
 HasInternet = component.isAvailable("internet")
 if HasInternet then internet = require("internet") end
 
 BranchURL = "https://raw.githubusercontent.com/ShicKla/AuspexGateSystems/dev"
-ReleaseVersionsFile = "/ags/ReleaseVersions.ff"
+ReleaseVersionsFile = "/ags/releaseVersions.ff"
 ReleaseVersions = nil
 LocalVersions = nil
 DialerFound = false
 UsersWorkingDir = nil
+DisplayChangeLog = false
 SelfFileName = string.sub(debug.getinfo(2, "S").source, 2)
 
 function initialization()
   if not filesystem.isDirectory("/ags") then
-    print("Creating \"/ags\" directory")
+    -- print("Creating \"/ags\" directory") -- For Debug
     local success, msg = filesystem.makeDirectory("/ags")
     if success == nil then
       io.stderr:write("Failed to created \"/ags\" directory, "..msg)
       forceExit(false)
     end
+  end
+  displayLogo()
+  if HasInternet then
+    print("Running in Online Mode\n")
+    getReleaseVersions()
+  else
+    print("No Internet Card Installed")
+    print("Running in Offline Mode\n")
   end
   UsersWorkingDir = shell.getWorkingDirectory()
   shell.setWorkingDirectory("/ags/")
@@ -46,24 +56,24 @@ function initialization()
   end 
   if SelfFileName ~= "/ags/AuspexGateSystems.lua" then
     print("The Auspex Gate Systems Launcher is running from")
-    print("the wrong directory, and it will be copied to")
-    print("\"/ags\", if it does not already exist.")
-    print("Please use the 'ags' system command to run the")
-    print("launcher.")
+    print("the wrong directory")
     if not filesystem.exists("/ags/AuspexGateSystems.lua") then
+        print("Launcher will be copied to \"/ags\"")
         local success, msg = filesystem.copy(SelfFileName, "/ags/AuspexGateSystems.lua")
         if success == nil then
           io.stderr:write(msg)
           forceExit(false)
         end
     end
+    print("Please use the 'ags' system command to run the")
+    print("launcher.")
     forceExit(true)
   end
   if not filesystem.exists("/ags/gateEntries.ff") then
     if filesystem.exists(UsersWorkingDir.."/gateEntries.ff") then
       print("Your gateEntries.ff file will be copied to")
       print("\"/ags\", and your old file will no longer be used.")
-      io.write("Press Enter to Continue")
+      io.write("Press Enter to Continue ")
       io.read()
       local success, msg = filesystem.copy(UsersWorkingDir.."/gateEntries.ff", "/ags/gateEntries.ff")
       if success == nil then
@@ -75,7 +85,21 @@ function initialization()
 end
 
 function displayLogo()
-  
+  if not filesystem.exists("/ags/AuspexLogo.ff") and HasInternet then
+    downloadFile("/ags/AuspexLogo.ff")
+  elseif not HasInternet then
+    return
+  end
+  if gpu.maxResolution() >= 160 then
+    term.setCursor(1, 31)
+    local file = io.open("/ags/AuspexLogo.ff", "r")
+    local i = 1
+    for line in file:lines() do 
+      gpu.set(5, 0+i, line)
+      i = i+1
+    end
+    file:close()
+  end
 end
 
 function forceExit(code)
@@ -100,6 +124,7 @@ function readVersionFile()
         filesystem.remove(UsersWorkingDir.."/ags.ff")
       end
       file = io.open("/ags/installedVersions.ff", "r")
+      DisplayChangeLog = true
     else
       io.stderr("No Internet Connection, unable to acquire Versions\n")
       forceExit(false)
@@ -128,11 +153,7 @@ function compareVersions()
   end  
   if isVersionGreater(LocalVersions.dialer.ver, ReleaseVersions.dialer.ver) then
     print("There is a new version of the Dialer. ")
-    if #ReleaseVersions.dialer.note > 0 then
-      print("Changes:")
-      for i,v in ipairs(ReleaseVersions.dialer.note) do print("  "..v) end
-      print()
-    end
+    changelogShow()
     io.write("Would you like to update, yes or no? ")
     local userInput = io.read(1)
     if userInput:lower() == "y" then
@@ -161,9 +182,22 @@ end
 function checkForDialer()
   DialerFound = filesystem.exists("/ags/SG_Dialer.lua")
   if not DialerFound then
+    if DisplayChangeLog then
+      changelogShow()
+      io.write("Press Enter to Continue ")
+      io.read()
+    end
     print("Downloading Dialer Program, Please Wait")
     downloadManifestedFiles(ReleaseVersions.dialer)
     print("Dialer Program Has Been Downloaded")
+  end
+end
+
+function changelogShow()
+  if #ReleaseVersions.dialer.note > 0 then
+    print("Changes:")
+    for i,v in ipairs(ReleaseVersions.dialer.note) do print("  "..v) end
+    print()
   end
 end
 
@@ -190,13 +224,6 @@ function downloadFile(fileName)
 end
 
 term.clear()
-if HasInternet then
-  print("Running in Online Mode\n")
-  getReleaseVersions()
-else
-  print("No Internet Card Installed")
-  print("Running in Offline Mode\n")
-end
 initialization()
 readVersionFile()
 if ReleaseVersions ~= nil then compareVersions() end

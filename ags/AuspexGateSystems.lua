@@ -8,12 +8,13 @@ component = require("component")
 serialization = require("serialization")
 filesystem = require("filesystem")
 shell = require("shell")
+term = require("term")
 internet = nil
 HasInternet = component.isAvailable("internet")
 if HasInternet then internet = require("internet") end
 
 BranchURL = "https://raw.githubusercontent.com/ShicKla/AuspexGateSystems/dev"
-VersionsURL = BranchURL.."/ReleaseVersions.ff"
+ReleaseVersionsFile = "/ags/ReleaseVersions.ff"
 ReleaseVersions = nil
 LocalVersions = nil
 DialerFound = false
@@ -30,7 +31,7 @@ function initialization()
     end
   end
   UsersWorkingDir = shell.getWorkingDirectory()
-  shell.setWorkingDirectory("/ags")
+  shell.setWorkingDirectory("/ags/")
   if not filesystem.exists("/bin/ags.lua") then
     local agsBinFile = {"shell = require(\"shell\")",
                         "filesystem = require(\"filesystem\")",
@@ -58,18 +59,6 @@ function initialization()
     end
     forceExit(true)
   end
-  if not filesystem.exists("/ags/installedVersions.ff") then
-    if filesystem.exists(UsersWorkingDir.."/ags.ff") then
-      print("Moving ags.ff file")
-      local success, msg = filesystem.copy(UsersWorkingDir.."/ags.ff", "/ags/installedVersions.ff")
-      if success then
-        filesystem.remove(UsersWorkingDir.."/ags.ff")
-      elseif success == nil then
-        io.stderr:write(msg)
-        forceExit(false)
-      end
-    end
-  end
   if not filesystem.exists("/ags/gateEntries.ff") then
     if filesystem.exists(UsersWorkingDir.."/gateEntries.ff") then
       print("Your gateEntries.ff file will be copied to")
@@ -78,7 +67,7 @@ function initialization()
       io.read()
       local success, msg = filesystem.copy(UsersWorkingDir.."/gateEntries.ff", "/ags/gateEntries.ff")
       if success == nil then
-        io.stderr:write(msg)
+        io.stderr:write(tostring(msg))
         forceExit(false)
       end
     end
@@ -94,32 +83,25 @@ function forceExit(code)
   os.exit(code)
 end
 
-function getCurrentVersions()
-  local result = ""
-  ReleaseVersions = {}
-  local response = internet.request(VersionsURL)
-  local isGood = pcall(function() 
-    for chunk in response do
-      result = result..chunk
-    end
-    ReleaseVersions = serialization.unserialize(result)
-  end)
-  if not isGood then
-    io.stderr:write("Version Check Failed")
-    forceExit(false)
-  end
+function getReleaseVersions()
+  downloadFile(ReleaseVersionsFile)
+  local file = io.open(ReleaseVersionsFile, "r")
+  ReleaseVersions = serialization.unserialize(file:read("*a"))
+  file:close()
 end
 
 function readVersionFile()
   local file = io.open("/ags/installedVersions.ff", "r")
   if file == nil then
     if HasInternet then
-      file = io.open("/ags/installedVersions.ff", "w")
-      file:write(serialization.serialize(ReleaseVersions))
-      file:close()
+      downloadFile(ReleaseVersionsFile)
+      filesystem.copy(ReleaseVersionsFile, "/ags/installedVersions.ff")
+      if filesystem.exists(UsersWorkingDir.."/ags.ff") then
+        filesystem.remove(UsersWorkingDir.."/ags.ff")
+      end
       file = io.open("/ags/installedVersions.ff", "r")
     else
-      io.stderr:write("Version Information Missing. Need Internet to Download")
+      io.stderr("No Internet Connection, unable to acquire Versions\n")
       forceExit(false)
     end
   end
@@ -210,8 +192,9 @@ end
 term.clear()
 if HasInternet then
   print("Running in Online Mode\n")
-  getCurrentVersions()
+  getReleaseVersions()
 else
+  print("No Internet Card Installed")
   print("Running in Offline Mode\n")
 end
 initialization()
@@ -220,6 +203,6 @@ if ReleaseVersions ~= nil then compareVersions() end
 
 
 print("Launching Dialer")
-dofile(LocalVersions.dialer.file)
+dofile("/ags/SG_Dialer.lua")
 
 shell.setWorkingDirectory(UsersWorkingDir) -- Returns the user back to their original working directory

@@ -43,7 +43,7 @@ function initialization()
     print("launcher.")
     forceExit(true)
   end
-  if not filesystem.exists("/ags/gateEntries.ff") then
+  if not filesystem.exists("/ags/gateEntries.ff") or filesystem.size("/ags/gateEntries.ff") == 0 then
     if filesystem.exists(UsersWorkingDir.."/gateEntries.ff") then
       print("Found a Gate Entries database file at")
       print(UsersWorkingDir.."/gateEntries.ff")

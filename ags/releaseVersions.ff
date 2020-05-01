@@ -12,6 +12,7 @@
         file = "AuspexGateSystems.lua",
         note = {},
         manifest = {"/ags/AuspexGateSystems.lua",
-                    "/ags/AuspexLogo.ff"}
+                    "/ags/AuspexLogo.ff",
+                    "/ags/releaseVersions.ff"}
     }
 }

@@ -1538,53 +1538,6 @@ function gateRingDisplay.setChevron(num, isEngaged)
   gpu.setForeground(0xFFFFFF)
 end
 
--- function drawGate()
-  -- local ringTbl = {}
-  -- local chevTbl = {"⢶⣶⣶⣶⣶⡶","⠀⢻⣿⣿⡟","⠀⠀⢻⡟"}
-  -- local dotTbl = {"⢀⣴⣶⣦⡀","⣿⣿⣿⣿⣿","⠈⠻⠿⠟⠁"}
-  -- local dot2Tbl = {"⣠⣾⣿⣷⣄", "⢿⣿⣿⣿⡿", "⠙⠛⠋"}
-  -- local file = io.open("gateRing.ff", "r")
-  -- for line in file:lines() do table.insert(ringTbl, line) end
-  -- file:close()
-  -- gpu.setForeground(0x5A5A5A)
-  -- for i,v in ipairs(ringTbl) do
-    -- gpu.set(50, 7+i, v)
-  -- end
-  -- gpu.setBackground(0x5A5A5A)
-  -- gpu.setForeground(0x662400)
-  -- for i,v in ipairs(chevTbl) do -- 7
-    -- gpu.set(77, 7+i, v)
-  -- end
-  -- for i,v in ipairs(dotTbl) do -- 6
-    -- gpu.set(62, 10+i, v)
-  -- end
-  -- for i,v in ipairs(dotTbl) do -- 1
-    -- gpu.set(93, 10+i, v)
-  -- end
-  -- for i,v in ipairs(dotTbl) do -- 5
-    -- gpu.set(52, 17+i, v)
-  -- end
-  -- for i,v in ipairs(dotTbl) do -- 2
-    -- gpu.set(103, 17+i, v)
-  -- end
-  -- for i,v in ipairs(dotTbl) do -- 4
-    -- gpu.set(54, 26+i, v)
-  -- end
-  -- for i,v in ipairs(dotTbl) do -- 3
-    -- gpu.set(101, 26+i, v)
-  -- end
-  -- for i,v in ipairs(dot2Tbl) do -- 9
-    -- if i ~= 3 then gpu.set(67, 33+i, v)
-    -- else gpu.set(68, 33+i, v) end
-  -- end
-  -- for i,v in ipairs(dot2Tbl) do -- 8
-    -- if i ~= 3 then gpu.set(88, 33+i, v)
-    -- else gpu.set(89, 33+i, v) end
-  -- end
-  -- gpu.setForeground(0xFFFFFF)
-  -- gpu.setBackground(0x000000)
--- end
-
 gateRingDisplay.initialize()
 function mainInterface()
   clearDisplay()

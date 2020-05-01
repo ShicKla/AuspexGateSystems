@@ -67,10 +67,12 @@ function initialization()
 end
 
 function displayLogo()
-  if not filesystem.exists("/ags/AuspexLogo.ff") and HasInternet then
-    downloadFile("/ags/AuspexLogo.ff")
-  elseif not HasInternet then
-    return
+  if not filesystem.exists("/ags/AuspexLogo.ff") then
+    if HasInternet then
+      downloadFile("/ags/AuspexLogo.ff")
+    else
+      return
+    end
   end
   if gpu.maxResolution() >= 160 then
     LogoDisplayed = true

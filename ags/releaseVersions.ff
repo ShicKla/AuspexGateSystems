@@ -13,6 +13,6 @@
         note = {},
         manifest = {"/ags/AuspexGateSystems.lua",
                     "/ags/AuspexLogo.ff",
-                    "/ags/releaseVersions.ff"}
+                    "/ags/floppyBackup.lua"}
     }
 }

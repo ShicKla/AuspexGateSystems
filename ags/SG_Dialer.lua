@@ -1394,54 +1394,54 @@ GateEntriesWindow.set()
 
 -- Creating Threads ----------------------------------------------------------------
 ChildThread = {
-statusThread = thread.create(function ()
-  displayInfoCenter()
-  while MainLoop do
-    displaySystemStatus()
-    os.sleep()
-  end
-end),
-gateStatusThread = thread.create(function()
-  while MainLoop do
-    GateStatusString, GateStatusBool = sg.getGateStatus()
-    if GateStatusBool ~= nil then
-      if GateStatusBool == true and not buttons.closeGateButton.visible then
-        buttons.closeGateButton:display()
+  statusThread = thread.create(function ()
+    displayInfoCenter()
+    while MainLoop do
+      displaySystemStatus()
+      os.sleep()
+    end
+  end),
+  gateStatusThread = thread.create(function()
+    while MainLoop do
+      GateStatusString, GateStatusBool = sg.getGateStatus()
+      if GateStatusBool ~= nil then
+        if GateStatusBool == true and not buttons.closeGateButton.visible then
+          buttons.closeGateButton:display()
+        end
+      elseif buttons.closeGateButton.visible then
+        buttons.closeGateButton:hide()
       end
-    elseif buttons.closeGateButton.visible then
-      buttons.closeGateButton:hide()
-    end
-    if not UNGateResetting then
-      if GateStatusString == "dialing" then
-        glyphListWindow.locked = true
-        glyphListWindow.showAddress()
+      if not UNGateResetting then
+        if GateStatusString == "dialing" then
+          glyphListWindow.locked = true
+          glyphListWindow.showAddress()
+        end
       end
+      if not DialerInterlocked and GateStatusString ~= "idle" then
+        DialerInterlocked = true
+      end
+      if GateStatusString == "dialing" and DialingModeInterlocked and not AbortingDialing then abortDialing() end
+      os.sleep()
     end
-    if not DialerInterlocked and GateStatusString ~= "idle" then
-      DialerInterlocked = true
+  end),
+  debugWindowThread = thread.create(function()
+    while MainLoop do
+      local used = RootDrive.spaceUsed()
+      local total = RootDrive.spaceTotal()
+      gpu.fill(3, 48, 40, 1, " ")
+      if DebugMode then
+        gpu.fill(48, 45, 110, 4, " ")
+        gpu.set(48, 45, "Dialer Version: "..Version) -- For Debug
+        gpu.set(48, 46, "DialerInterlocked: "..tostring(DialerInterlocked)) -- For Debug
+        gpu.set(48, 47, "DialingModeInterlocked: "..tostring(DialingModeInterlocked)) -- For Debug
+        gpu.set(48, 48, "dialerAdrEntryMode: "..tostring(dialerAdrEntryMode)) -- For Debug
+        gpu.set(84, 45, "glyphListWindow.locked: "..tostring(glyphListWindow.locked)) -- For Debug
+        gpu.set(84, 47, "Gate Status: "..tostring(GateStatusString).." | "..tostring(GateStatusBool)) -- For Debug
+        gpu.set(84, 48, "Drive Usage: "..used.."/"..total.." "..math.floor((used/total)*100).."%") -- For Debug
+      end
+      os.sleep()
     end
-    if GateStatusString == "dialing" and DialingModeInterlocked and not AbortingDialing then abortDialing() end
-    os.sleep()
-  end
-end),
-debugWindowThread = thread.create(function()
-  while MainLoop do
-    local used = RootDrive.spaceUsed()
-    local total = RootDrive.spaceTotal()
-    gpu.fill(3, 48, 40, 1, " ")
-    if DebugMode then
-      gpu.fill(48, 45, 110, 4, " ")
-      gpu.set(48, 45, "Dialer Version: "..Version) -- For Debug
-      gpu.set(48, 46, "DialerInterlocked: "..tostring(DialerInterlocked)) -- For Debug
-      gpu.set(48, 47, "DialingModeInterlocked: "..tostring(DialingModeInterlocked)) -- For Debug
-      gpu.set(48, 48, "dialerAdrEntryMode: "..tostring(dialerAdrEntryMode)) -- For Debug
-      gpu.set(84, 45, "glyphListWindow.locked: "..tostring(glyphListWindow.locked)) -- For Debug
-      gpu.set(84, 47, "Gate Status: "..tostring(GateStatusString).." | "..tostring(GateStatusBool)) -- For Debug
-      gpu.set(84, 48, "Drive Usage: "..used.."/"..total.." "..math.floor((used/total)*100).."%") -- For Debug
-    end
-    os.sleep()
-  end
-end)
+  end)
 }
 -- End of Thread Creation ----------------------------------------------------------
 

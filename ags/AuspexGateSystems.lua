@@ -21,10 +21,12 @@ LocalVersions = nil
 DialerFound = false
 UsersWorkingDir = nil
 DisplayChangeLog = false
+LogoDisplayed = false
 SelfFileName = string.sub(debug.getinfo(2, "S").source, 2)
 
 function initialization()
   displayLogo()
+  if LogoDisplayed then term.setCursor(1, 31) end
   if HasInternet then
     print("Running in Online Mode\n")
     getReleaseVersions()
@@ -48,12 +50,9 @@ function initialization()
       print("That file will no longer be used by the dialer.")
       print("Would you like to copy your database file to the")
       print("AGS Install, so it can be used?")
-      print("\"/ags\", and your old file will no longer be used.")
       io.write("Yes/No: ")
-      local userInput = io.read()
-      userInput = userInput:lower()
-      userInput = userInput:sub(1,1)
-      if userInput ~= "y" then
+      local userInput = io.read("*l")
+      if (userInput:lower()):sub(1,1) == "y" then
         local success, msg = filesystem.copy(UsersWorkingDir.."/gateEntries.ff", "/ags/gateEntries.ff")
         if success == nil then
           io.stderr:write(tostring(msg))
@@ -74,7 +73,8 @@ function displayLogo()
     return
   end
   if gpu.maxResolution() >= 160 then
-    term.setCursor(1, 31)
+    LogoDisplayed = true
+    gpu.fill(1, 1, 160, 30, " ")
     local file = io.open("/ags/AuspexLogo.ff", "r")
     local i = 1
     for line in file:lines() do 
@@ -133,22 +133,24 @@ function compareVersions()
     shell.setWorkingDirectory(UsersWorkingDir)
     shell.execute("/ags/AuspexGateSystems.lua")
     forceExit(true)
-  end  
-  if LocalVersions.dialer ~= nil and isVersionGreater(LocalVersions.dialer.ver, ReleaseVersions.dialer.ver) then
+  end
+  if LocalVersions.dialer == nil then
+    LocalVersions.dialer = ReleaseVersions.dialer
+  end
+  if isVersionGreater(LocalVersions.dialer.ver, ReleaseVersions.dialer.ver) then
     print("There is a new version of the Dialer. ")
     changelogShow()
     io.write("Would you like to update, yes or no? ")
-    local userInput = io.read(1)
-    if userInput:lower() == "y" then
+    local userInput = io.read("*l")
+    if (userInput:lower()):sub(1,1) == "y" then
       print("Updating Dialer Program, Please Wait")
       downloadManifestedFiles(ReleaseVersions.dialer)
       print("Dialer Program Has Been Updated")
       LocalVersions.dialer = ReleaseVersions.dialer
       saveVersionFile()
     end
-  else
-    checkForDialer()
   end
+  checkForDialer()
 end
 
 function isVersionGreater(oldVer, newVer)
@@ -164,9 +166,10 @@ end
 
 function checkForDialer()
   if not filesystem.exists("/ags/SG_Dialer.lua") then
+    print("Dialer program will now be installed.")
     changelogShow()
     io.write("Press Enter to Continue ")
-    io.read()
+    io.read("*l")
     print("Installing Dialer Program, Please Wait")
     downloadManifestedFiles(ReleaseVersions.dialer)
     print("Dialer Program Has Been Installed")
@@ -182,10 +185,11 @@ function changelogShow()
 end
 
 function downloadManifestedFiles(program)
-  for i,v in ipairs(program.manifest) do downloadFile(v) end
+  for i,v in ipairs(program.manifest) do downloadFile(v, true) end
 end
 
-function downloadFile(fileName)
+function downloadFile(fileName, verbose)
+  if verbose then print("Downloading..."..fileName) end
   local result = ""
   local response = internet.request(BranchURL..fileName)
   local isGood, err = pcall(function()
@@ -207,7 +211,6 @@ term.clear()
 initialization()
 readVersionFile()
 if ReleaseVersions ~= nil then compareVersions() end
-
 
 print("Launching Dialer")
 dofile("/ags/SG_Dialer.lua")

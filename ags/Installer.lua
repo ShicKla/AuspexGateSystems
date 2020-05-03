@@ -1,7 +1,7 @@
 --[[
 Created By: Augur ShicKla
 Installer
-v1.0.1
+v1.1.0
 ]]--
 
 
@@ -110,8 +110,7 @@ print("Launcher Changes:")
 for i,v in ipairs(ReleaseVersions.launcher.note) do print("  "..v) end
 print([[
 Installation complete!
-Please use the 'ags' system command to run the
-launcher.
+Please use the 'ags' system command to run the launcher.
 ]])
 
 

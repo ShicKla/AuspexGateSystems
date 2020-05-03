@@ -1,9 +1,10 @@
 {
     dialer={
-        ver = "0.4.6",
+        ver = "0.5.0",
         file = "SG_Dialer.lua",
         note = {"Added 'Smart Dialing' System, which dials only the needed glyphs to make a connection.",
-                "Added Stargate Ring Display"},
+                "Added Stargate Ring Display",
+                "Added Touch Screen Mode Toggle 'F4'"},
         manifest = {"/ags/SG_Dialer.lua",
                     "/ags/gateRing.ff"}
     },

@@ -1391,6 +1391,16 @@ EventListeners = {
       MainHold = false
     end
   end),
+  
+  interruptedEvent = event.listen("interrupted", function()
+    wasTerminated = true
+    HadNoError = false
+    MainHold = false
+    for k,v in pairs(ChildThread) do v:kill() end
+    if AlertThread ~= nil then AlertThread:kill() end
+    for k,v in pairs(EventListeners) do event.cancel(v) end
+    screen.setTouchModeInverted(false)
+  end)
 }
 -- End of Event Section ------------------------------------------------------------
 
@@ -1499,7 +1509,8 @@ function help.toggle()
     "KEY BINDS:",
     " F4: Toggles Touch Screen Mode",
     " F12: Toggles Debug Information",
-    " Ctrl+Q: Closes the Dialer Program"
+    " Ctrl+Q: Closes the Dialer Program",
+    " Ctrl+C: Forces the Dialer to Close"
   }
   local self = help
   self.xPos = 41
@@ -1622,6 +1633,7 @@ function mainInterface()
   while MainHold do os.sleep() end
 end
 
+wasTerminated = false
 HadNoError = true
 while MainLoop do
   mainInterface()
@@ -1633,19 +1645,18 @@ end
 
 -- Clean Up ------------------------------------------------------------------------
 term.clear()
-
-for k,v in pairs(ChildThread) do
-  v:kill()
-  -- print(k..": "..v:status()) -- For Debug
+if not wasTerminated then
+  for k,v in pairs(ChildThread) do
+    v:kill()
+    -- print(k..": "..v:status()) -- For Debug
+  end
+  if AlertThread ~= nil then AlertThread:kill() end
+  for k,v in pairs(EventListeners) do
+    -- print("Canceling: "..v..":"..k) -- For Debug
+    event.cancel(v)
+  end
+  screen.setTouchModeInverted(false)
+  print("Dialer Program Closed")
+else
+  print("Dialer Program Terminated")
 end
-if AlertThread ~= nil then AlertThread:kill() end
-
-for k,v in pairs(EventListeners) do
-  -- print("Canceling: "..v..":"..k) -- For Debug
-  event.cancel(v)
-end
-screen.setTouchModeInverted(false)
--- End of Clean Up -----------------------------------------------------------------
-if not HadNoError then io.stderr:write("\n"..ErrorString.."\n") end
-print("Dialer Program Closed")
-

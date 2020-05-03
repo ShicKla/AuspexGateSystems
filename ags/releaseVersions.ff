@@ -2,7 +2,7 @@
     dialer={
         ver = "0.4.6",
         file = "SG_Dialer.lua",
-        note = {"Added 'Smart Dialing' System",
+        note = {"Added 'Smart Dialing' System, which dials only the needed glyphs to make a connection.",
                 "Added Stargate Ring Display"},
         manifest = {"/ags/SG_Dialer.lua",
                     "/ags/gateRing.ff"}
@@ -10,7 +10,7 @@
     launcher={
         ver = "1.0.1",
         file = "AuspexGateSystems.lua",
-        note = {},
+        note = {"Added a backup to floppy utility which can be found in the '/ags' directory"},
         manifest = {"/ags/AuspexGateSystems.lua",
                     "/ags/AuspexLogo.ff",
                     "/ags/floppyBackup.lua"}

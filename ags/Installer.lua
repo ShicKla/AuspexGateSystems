@@ -106,6 +106,12 @@ createInstallDirectory()
 checkForExistingInstall()
 downloadNeededFiles()
 createSystemShortcut()
-print("Installation complete!")
-print("Please use the 'ags' system command to run the")
-print("launcher.")
+print("Launcher Changes:")
+for i,v in ipairs(ReleaseVersions.launcher.note) do print("  "..v) end
+print([[
+Installation complete!
+Please use the 'ags' system command to run the
+launcher.
+]])
+
+

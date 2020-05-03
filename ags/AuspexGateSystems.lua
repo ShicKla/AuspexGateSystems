@@ -34,6 +34,13 @@ function initialization()
     print("No Internet Card Installed")
     print("Running in Offline Mode\n")
   end
+  if installedVersions.firstRun == nil or installedVersions.firstRun then
+    print("Launcher Changes:")
+    for i,v in ipairs(ReleaseVersions.launcher.note) do print("  "..v) end
+    print()
+    installedVersions.firstRun = false
+    saveVersionFile()
+  end
   UsersWorkingDir = shell.getWorkingDirectory()
   shell.setWorkingDirectory("/ags/")
   if SelfFileName ~= "/ags/AuspexGateSystems.lua" then

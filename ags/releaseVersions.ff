@@ -15,4 +15,5 @@
                     "/ags/AuspexLogo.ff",
                     "/ags/floppyBackup.lua"}
     }
+    firstRun = false
 }

@@ -1,6 +1,6 @@
 --[[
 Created By: Augur ShicKla
-v0.5.0
+v0.5.1
 
 System Requirements:
 Tier 3.5 Memory
@@ -8,7 +8,7 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
-Version = "0.5.0"
+Version = "0.5.1"
 c = require("component")
 computer = require("computer")
 event = require("event")
@@ -649,7 +649,8 @@ function glyphListWindow.touch(x,y)
             end
           end
           if #AddressBuffer >= 6 then
-            if addAddressMode then 
+            if addAddressMode then
+              manualAdrEntryMode = false
               completeAddressEntry(self.glyphType)
             else
               directDial()
@@ -835,6 +836,7 @@ function addressEntry(adrType)
   adrEntryType = adrType
   AddressBuffer = {}
   clearDisplay()
+  gpu.set(42, 6, "Select one of the below options to enter the address.")
   buttons.cancelButton:display()
   buttons.manualEntryButton:display()
   if GateType == "MW" and adrType == "MW" then
@@ -844,7 +846,6 @@ function addressEntry(adrType)
   else
     manualAddressEntry()
   end
-  gpu.set(42, 6, "Select one of the below options to enter the address.")
 end
 
 function addNewGateEntry()
@@ -975,7 +976,7 @@ function dialerAddressEntry()
   glyphListWindow.reset()
   buttons.cancelButton:display()
   dialerAdrEntryMode = true
-  gpu.fill(41, 6, 102, 10, " ")
+  gpu.fill(41, 6, 91, 10, " ")
   gpu.set(42, 6, "Dial the gate using your Universe Dialer. The address will be captured once the gate opens.")
   gpu.setForeground(0xFFFF00)
   gpu.set(42, 7, "Warning this process will use power since the gate will open.")
@@ -983,7 +984,7 @@ function dialerAddressEntry()
   gpu.setForeground(0xFFFFFF)
   gpu.set(42, 9, "Please begin dialing or push 'Cancel'")
   while dialerAdrEntryMode do
-    os.sleep()
+    os.sleep(0.05)
     if WasCanceled then
       allGood = false
       WasCanceled = false
@@ -1024,8 +1025,11 @@ function manualAddressEntry()
     clearDisplay()
     buttons.cancelButton:display()
     manualAdrEntryMode = true
-    if glyphListWindow.glyphType ~= GateType then glyphListWindow.initialize(adrEntryType) end
+    if glyphListWindow.glyphType ~= adrEntryType then
+      glyphListWindow.initialize(adrEntryType)
+    end
     gpu.set(42, 6, "Enter the address using the glyphs to the right. Then hit 'Origin' to complete.")
+    while manualAdrEntryMode do os.sleep() end
   end
 end
 -- End of Address Entry ------------------------------------------------------------
@@ -1628,6 +1632,7 @@ buttons = {
     addAddressMode = false
     manualAdrEntryMode = false
     editGateEntryMode = false
+    glyphListWindow.initialize(GateType)
     MainHold = false
   end),
   helpButton = Button.new(8, 41, 0, 0, "Help", function()
@@ -1757,6 +1762,7 @@ ChildThread = {
         gpu.set(48, 48, serialization.serialize(DialedAddress))
         gpu.set(84, 47, "Gate Status: "..tostring(GateStatusString).." | "..tostring(GateStatusBool))
         gpu.set(120, 45, "Drive Usage: "..used.."/"..total.." "..math.floor((used/total)*100).."%")
+        gpu.set(120, 46, "manualAdrEntryMode: "..tostring(manualAdrEntryMode))
       end
       os.sleep()
     end

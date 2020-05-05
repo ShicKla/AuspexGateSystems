@@ -213,7 +213,7 @@ end
 term.clear()
 initialization()
 readVersionFile()
-if ReleaseVersions ~= nil then compareVersions() end
+compareVersions()
 
 print("Launching Dialer")
 dofile("/ags/SG_Dialer.lua")

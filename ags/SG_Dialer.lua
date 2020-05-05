@@ -429,12 +429,12 @@ function GateEntriesWindow.set()
   self.xPos = 2
   self.yPos = 3
   self.width = 37
-  self.height = 38
-  gpu.fill(1, 2, 40, 40, " ")
+  self.height = 37
+  gpu.fill(1, 2, 40, 39, " ")
   self.entries = {}
   self.range = {}
   self.range.bot = 1
-  self.range.height = 38
+  self.range.height = 37
   self.range.top = self.range.height
   self.locked = false
   if GateType == "MW" then self.localAddress = localMWAddress
@@ -442,13 +442,13 @@ function GateEntriesWindow.set()
   elseif GateType == "PG" then self.localAddress = localPGAddress
   end
   gpu.set(1, 2,  "╔╡Gate Entries╞═══════════════════════╗")
-  gpu.set(1, 41, "╚═════════════════════════════════════╝")
-  gpu.fill(1, 3, 1, 38, "║")
-  gpu.fill(39, 3, 1, 38, "║")
-  self.scrollUpButton = Button.new(3, 40, 0, 0, "▲PgUp▲", function()
+  gpu.set(1, 40, "╚═════════════════════════════════════╝")
+  gpu.fill(1, 3, 1, 37, "║")
+  gpu.fill(39, 3, 1, 37, "║")
+  self.scrollUpButton = Button.new(3, 39, 0, 0, "▲PgUp▲", function()
     GateEntriesWindow.increment(-1)
   end, false)
-  self.scrollDnButton = Button.new(30, 40, 0, 0, "▼PgDn▼", function()
+  self.scrollDnButton = Button.new(30, 39, 0, 0, "▼PgDn▼", function()
     GateEntriesWindow.increment(1)
   end, false)
   self.update()
@@ -482,13 +482,13 @@ function GateEntriesWindow.update()
     table.insert(self.entryStrings, strBuf)
   end
   if #self.entryStrings > self.range.height then
-    gpu.set(1, 41, "╚═╡░░░░░░╞═══════════════════╡░░░░░░╞═╝")
+    gpu.set(1, 40, "╚═╡░░░░░░╞═══════════════════╡░░░░░░╞═╝")
     self.scrollUpButton:display()
     self.scrollDnButton:display()
   else
     self.scrollUpButton:hide()
     self.scrollDnButton:hide()
-    gpu.fill(2, 41, 37, 1, "═")
+    gpu.fill(2, 40, 37, 1, "═")
   end
   self.display()
 end
@@ -496,7 +496,7 @@ end
 function GateEntriesWindow.display()
   if #gateEntries == 0 then alert("WARNING: NO ADDRESSES IN DATABASE!", 2) end
   local self = GateEntriesWindow
-  gpu.fill(2, 3, 37, 38, " ")
+  gpu.fill(2, 3, 37, 37, " ")
   self.currentIndices = {}
   local displayCount = 0
   for i,v in ipairs(self.entryStrings) do
@@ -535,7 +535,6 @@ function glyphListWindow.initialize(glyphType)
   self.selectedGlyphs = {}
   if glyphType == "MW" then
     self.glyphs = GlyphsMW
-  
   elseif glyphType == "UN" then
     self.glyphs = {}
     for i=1,36,1 do
@@ -543,7 +542,6 @@ function glyphListWindow.initialize(glyphType)
     end
   elseif glyphType == "PG" then
     self.glyphs = GlyphsPG
-  
   end
   if glyphType == "MW" or glyphType == "PG" then table.sort(self.glyphs) end
   gpu.fill(self.xPos-self.width, self.yPos, 2*self.width, term.window.height-8, " ")
@@ -570,6 +568,7 @@ function glyphListWindow.initialize(glyphType)
   gpu.set(self.xPos, self.yPos+3+self.glyphsHeight, "╚")
   gpu.fill(self.xPos+1, self.yPos+3+self.glyphsHeight, self.width-2, 1, "═")
   gpu.set(self.xPos+self.width-1, self.yPos+3+self.glyphsHeight, "╝")
+  gpu.set(self.xPos, self.yPos+3, "╢")
   self.display()
 end
 
@@ -580,7 +579,7 @@ function glyphListWindow.display()
   local xOffset = self.xPos-self.width
   local resetButton = buttons.glyphResetButton
   gpu.fill(self.xPos+1, yOffset+1, self.width-2, self.glyphsHeight, " ")
-  gpu.fill(xOffset, self.yPos, self.width, self.height, " ")
+  gpu.fill(xOffset+1, 7, self.width-2, 8, " ")
   for i,v in ipairs(self.selectedGlyphs) do
     if v == -1 then gpu.setBackground(0x878787) end
   end
@@ -598,18 +597,31 @@ function glyphListWindow.display()
       resetButton.xPos = xOffset+(self.width/2-resetButton.width/2)
       resetButton:display()
     end
-    gpu.set(xOffset, yOffset+2, "┌")
-    gpu.fill(xOffset+1, yOffset+2, self.width-2, 1, "─")
-    gpu.set(xOffset+self.width-1, yOffset+2, "┐")
-    gpu.set(xOffset+(self.width/2)-1, yOffset+2, "┴")
-    gpu.set(xOffset+(self.width/2)-1, yOffset+1, "┌")
-    gpu.fill(xOffset+(self.width/2), yOffset+1, (self.width/2), 1, "─")
-    gpu.set(self.xPos, yOffset+1, "╢")
-    for i,v in ipairs(self.selectedGlyphs) do
-      local glyph = self.glyphs[v]
-      if v ~= -1 then gpu.set(xOffset+(self.width/2-unicode.len(glyph)/2), yOffset+2+i, glyph) end
-    end
+    gpu.setForeground(0xFFFFFF)
+  else
+    gpu.setForeground(0x0F0F0F)
   end
+  gpu.set(xOffset, yOffset+2, "┌")
+  gpu.fill(xOffset+1, yOffset+2, self.width-2, 1, "─")
+  gpu.set(xOffset+self.width-1, yOffset+2, "┐")
+  gpu.set(xOffset+(self.width/2)-1, yOffset+2, "┴")
+  gpu.set(xOffset+(self.width/2)-1, yOffset+1, "┌")
+  gpu.fill(xOffset+(self.width/2), yOffset+1, (self.width/2), 1, "─")
+  if gateRingDisplay.isActive then
+    gpu.fill(xOffset, yOffset+3, 1, 8, "┤")
+  else
+    gpu.fill(xOffset, 3, self.width, 1, " ")
+    gpu.fill(xOffset, yOffset+3, 1, 8, "│")
+  end
+  gpu.fill(xOffset+self.width-1, yOffset+3, 1, 8, "│")
+  gpu.set(xOffset, yOffset+11, "└")
+  gpu.fill(xOffset+1, yOffset+11, self.width-2, 1, "─")
+  gpu.set(xOffset+self.width-1, yOffset+11, "┘")
+  for i,v in ipairs(self.selectedGlyphs) do
+    local glyph = self.glyphs[v]
+    if v ~= -1 then gpu.set(xOffset+(self.width/2-unicode.len(glyph)/2), yOffset+2+i, glyph) end
+  end
+  gpu.setForeground(0xFFFFFF)
 end
 
 function glyphListWindow.touch(x,y)
@@ -697,10 +709,10 @@ end
 -- End of Direct Dialing ----------------------------------------------------------------
 
 -- Address Dialing ----------------------------------------------------------------------
-dialAddressWindow = {xPos= 42, yPos=5, width= 80, height=30, glyph=""}
+dialAddressWindow = {xPos= 42, yPos=5, width= 35, height=2, glyph=""}
 function dialAddressWindow.display(adr)
   local self = dialAddressWindow
-  gpu.fill(self.xPos, self.yPos, self.width, 3, " ") --self.height
+  gpu.fill(self.xPos, self.yPos, self.width, self.height, " ")
   gpu.set(self.xPos, self.yPos, "Dialing: "..adr.name)
   gpu.set(self.xPos, self.yPos+1, "Engaging "..self.glyph.."... ")
 end
@@ -794,6 +806,13 @@ function dialNext(dialed)
     dialAddressWindow.glyph = glyph
     sg.engageSymbol(glyph)
     glyphListWindow.insertGlyph(glyph)
+    if (dialed+1) < 7 then
+      gateRingDisplay.traces(dialed+1, 1)
+    elseif (dialed+1) == #AddressBuffer then
+      gateRingDisplay.traces(7, 1)
+    else
+      gateRingDisplay.traces(dialed+2, 1)
+    end
   end
 end
 
@@ -829,9 +848,10 @@ function addressEntry(adrType)
 end
 
 function addNewGateEntry()
-  glyphListWindow.locked = true
   alert("", -1)
   clearDisplay()
+  glyphListWindow.locked = true
+  glyphListWindow.display()
   buttons.cancelButton:display()
   gpu.set(42, 6, "What type of gate address would you like to enter, for you entry?")
   buttons.addressEntry_MW_Button.border = true
@@ -1049,6 +1069,7 @@ function editGateEntry(index)
   buttons.renameButton:display()
   buttons.deleteButton:display()
   glyphListWindow.locked = true
+  glyphListWindow.display()
   editGateEntryMode = true
   if gateEntry.gateAddress.MW == nil then gateEntry.gateAddress["MW"] = {} end
   if gateEntry.gateAddress.UN == nil then gateEntry.gateAddress["UN"] = {} end
@@ -1105,7 +1126,9 @@ function gateRingDisplay.initialize()
   local self = gateRingDisplay
   self.isActive = false
   self.chevronStates = {}
+  self.traceStates = {}
   for i=1,9 do table.insert(self.chevronStates, false) end
+  for i=1,9 do table.insert(self.traceStates, 0) end
   dofile("gateRing.ff") -- Loads the gate ring graphics
   self.ringTbl, self.topTbl, self.midTbl, self.botTbl = {},{},{},{}
   self.chevTbl = {"⢤⣤⣤⣤⣤⡤","⠀⢻⣿⣿⡟","⠀⠀⢻⡟"}
@@ -1136,14 +1159,125 @@ function gateRingDisplay.draw()
     gpu.set(50, 7+i, v)
   end
   self.eventHorizon(GateStatusString == "open" or GateStatusString == "unstable")
+  self.traces()
 end
 
-function gateRingDisplay.resetChevrons()
+function gateRingDisplay.traces(num, state)
+  local self = gateRingDisplay
+  if not self.isActive then return end
+  if num == nil or num == -1 then
+    for i,v in ipairs(self.traceStates) do self.traces(i, v) end
+    return
+  end
+  local glw = glyphListWindow
+  local glyphBoxX = 161 - (2 * glw.width)
+  local traceEndOffset = 0
+  if glw.width ~= nil then
+    traceEndOffset = 2*glw.width
+  else
+    traceEndOffset = 35
+  end
+  if state == nil or state == 0 then
+    gpu.setForeground(0x0F0F0F)
+  elseif state == 1 then
+    gpu.setForeground(self.offColor)
+  elseif state == 2 then
+    gpu.setForeground(self.onColor)
+  end
+  self.traceStates[num] = state
+  
+  if num == 1 then
+    gpu.set(93, 8, "┌─┴─┐") -- 1
+    gpu.set(95, 7, "┌") -- 1
+    gpu.fill(96, 7, 65-traceEndOffset, 1, "─") -- 1
+  elseif num == 2 then
+    gpu.set(110, 18, "┐├┘", true) -- 2
+    gpu.set(111, 19, "─┘") -- 2
+    gpu.fill(112, 9, 1, 10, "│") -- 2
+    gpu.set(112, 8, "┌") -- 2
+    gpu.fill(113, 8, 48-traceEndOffset, 1, "─") -- 2
+  elseif num == 3 then  
+    gpu.set(109, 27, "┐├┘", true) -- 3
+    gpu.set(110, 28, "────┘") -- 3
+    gpu.fill(114, 10, 1, 18, "│") -- 3
+    gpu.set(114, 9, "┌") -- 3
+    gpu.fill(115, 9, 46-traceEndOffset, 1, "─") -- 3
+  elseif num == 4 then  
+    gpu.set(50, 27, "┌┤└", true) -- 4
+    gpu.set(48, 28, "┌─") -- 4
+    gpu.fill(48, 29, 1, 10, "│") -- 4
+    gpu.set(48, 39, "└") -- 4
+    gpu.fill(49, 39, 20, 1, "─") -- 4
+    gpu.fill(70, 39, 20, 1, "─") -- 4
+    gpu.fill(91, 39, 25, 1, "─") -- 4
+    gpu.set(116, 39, "┘") -- 4
+    gpu.fill(116, 11, 1, 28, "│") -- 4
+    gpu.set(116, 10, "┌") -- 4
+    gpu.fill(117, 10, 44-traceEndOffset, 1, "─") -- 4
+  elseif num == 5 then  
+    gpu.set(49, 18, "┌┤└", true) -- 5
+    gpu.set(46, 19, "┌──") -- 5
+    gpu.fill(46, 20, 1, 20, "│") -- 5
+    gpu.set(46, 40, "└") -- 5
+    gpu.fill(47, 40, 22, 1, "─") -- 5
+    gpu.fill(70, 40, 20, 1, "─") -- 5
+    gpu.fill(91, 40, 27, 1, "─") -- 5
+    gpu.set(118, 40, "┘") -- 5
+    gpu.fill(118, 12, 1, 28, "│") -- 5
+    gpu.set(118, 11, "┌") -- 5
+    gpu.fill(119, 11, 42-traceEndOffset, 1, "─") -- 5
+  elseif num == 6 then  
+    gpu.set(62, 8, "┌─┴─┐") -- 6
+    gpu.set(64, 7, "┐") -- 6
+    gpu.fill(45, 7, 19, 1, "─") -- 6
+    gpu.set(44, 7, "┌") -- 6
+    gpu.fill(44, 8, 1, 33, "│") -- 6
+    gpu.set(44, 41, "└") -- 6
+    gpu.fill(45, 41, 24, 1, "─") -- 6
+    gpu.fill(70, 41, 20, 1, "─") -- 6
+    gpu.fill(91, 41, 29, 1, "─") -- 6
+    gpu.set(120, 41, "┘") -- 6
+    gpu.fill(120, 13, 1, 28, "│") -- 6
+    gpu.set(120, 12, "┌") -- 6
+    gpu.fill(121, 12, 40-traceEndOffset, 1, "─") -- 6
+  elseif num == 7 then  
+    gpu.set(76, 7, "⠏⠉⠉⠉⠉⠉⠉⠹") -- 7
+    gpu.fill(79, 4, 1, 3, "⢸") -- 7
+    gpu.fill(80, 4, 1, 3, "⡇") -- 7
+    gpu.set(79, 3, "⢰⡶") -- 7
+    gpu.fill(81, 3, 80-glw.width, 1, "⠶") -- 7
+  elseif num == 8 then  
+    gpu.set(88, 38, "└─┬─┘") -- 8
+    gpu.fill(90, 39, 1, 3, "│") -- 8
+    gpu.set(90, 42, "└") -- 8
+    gpu.fill(91, 42, 31, 1, "─") -- 8
+    gpu.set(122, 42, "┘") -- 8
+    gpu.fill(122, 14, 1, 28, "│") -- 8
+    gpu.set(122, 13, "┌") -- 8
+    gpu.fill(123, 13, 38-traceEndOffset, 1, "─") -- 8
+  elseif num == 9 then  
+    gpu.set(67, 38, "└─┬─┘") -- 9
+    gpu.fill(69, 39, 1, 4, "│") -- 9
+    gpu.set(69, 43, "└") -- 9
+    gpu.fill(70, 43, 54, 1, "─") -- 9
+    gpu.set(124, 43, "┘") -- 9
+    gpu.fill(124, 15, 1, 28, "│")
+    gpu.set(124, 14, "┌") --9
+    gpu.fill(125, 14, 36-traceEndOffset, 1, "─") -- 9
+  end
+  
+  gpu.setForeground(0xFFFFFF)
+end
+
+function gateRingDisplay.reset()
   local self = gateRingDisplay
   for i,v in ipairs(self.chevronStates) do self.chevronStates[i] = false end
+  for i,v in ipairs(self.traceStates) do self.traceStates[i] = 0 end
   if self.isActive then
     for i,v in ipairs(self.chevronStates) do self.setChevron(i, v) end
+    for i,v in ipairs(self.traceStates) do self.traces(i, v) end
   end
+  
 end
 
 function gateRingDisplay.eventHorizon(isOpen)
@@ -1224,12 +1358,15 @@ function gateRingDisplay.dialedChevrons()
   local self = gateRingDisplay
   local count = #DialedAddress
   if count < 7 then
-    gateRingDisplay.setChevron(count, true)
+    self.setChevron(count, true)
+    self.traces(count, 2)
   else
     if DialedAddress[count] == "" then
-      gateRingDisplay.setChevron(7, true)
+      self.setChevron(7, true)
+      self.traces(7, 2)
     else
-      gateRingDisplay.setChevron(count+1, true)
+      self.setChevron(count+1, true)
+      self.traces(count+1, 2)
     end
   end
 end
@@ -1266,10 +1403,18 @@ EventListeners = {
       if lock then
         alert("CHEVRON "..math.floor(num).." LOCKED", 1)
         gateRingDisplay.setChevron(7, true)
+        gateRingDisplay.traces(7, 2)
         if not AbortingDialing then sg.engageGate() end
         os.sleep()
         DialingModeInterlocked = false
       else
+        if (num) < 7 then
+          gateRingDisplay.setChevron(num, true)
+          gateRingDisplay.traces(num, 2)
+        else
+          gateRingDisplay.setChevron(num+1, true)
+          gateRingDisplay.traces(num+1, 2)
+        end        
         os.sleep()
         if not AbortingDialing then 
           alert("CHEVRON "..math.floor(num).." ENGAGED", 0)
@@ -1280,7 +1425,10 @@ EventListeners = {
   end),
 
   openEvent = event.listen("stargate_open", function(evname, address, caller, isInitiating)
-    if GateType == "UN" and isInitiating then gateRingDisplay.setChevron(7, true) end
+    if GateType == "UN" and isInitiating then 
+      gateRingDisplay.traces(7, 2)
+      gateRingDisplay.setChevron(7, true)
+    end
     if dialerAdrEntryMode then
       dialerAdrEntryMode = false
     else
@@ -1295,7 +1443,7 @@ EventListeners = {
     UNGateResetting = true
     alert("CONNECTION HAS CLOSED", 1)
     while sg.getGateStatus() == "unstable" do os.sleep() end
-    gateRingDisplay.resetChevrons()
+    gateRingDisplay.reset()
     gateRingDisplay.eventHorizon(false)
     if GateType == "UN" then gateRingDisplay.UNreset() end
     DialerInterlocked = false
@@ -1326,7 +1474,7 @@ EventListeners = {
           end
         end
         while sg.getGateStatus() == "failing" do os.sleep() end
-        gateRingDisplay.resetChevrons()
+        gateRingDisplay.reset()
         if GateType == "UN" then gateRingDisplay.UNreset() end
         DialerInterlocked = false
         DialingModeInterlocked = false
@@ -1406,7 +1554,7 @@ EventListeners = {
 
 -- Buttons -------------------------------------------------------------------------
 buttons = {
-  quitButton = Button.new(77, 2, 0, 3, "Quit", function()
+  quitButton = Button.new(1, 41, 0, 3, "Quit", function()
     MainLoop = false
     MainHold = false
   end),
@@ -1437,7 +1585,7 @@ buttons = {
   deleteNoButton = Button.new(59, 25, 0, 3, " No  ", function()
     deleteGateEntry(-1)
   end, false),
-  closeGateButton = Button.new(84, 2, 0, 3, "Close Gate", function()
+  closeGateButton = Button.new(15, 41, 0, 3, "Close Gate", function()
     local s,f = sg.disengageGate()
     if f == "stargate_failure_wrong_end" then
       alert("CAN NOT CLOSE AN INCOMING CONNECTION", 2)
@@ -1452,7 +1600,7 @@ buttons = {
   abortDialingButton = Button.new(41, 2, 0, 3, "Abort Dialing", function()
     abortDialing()
   end),
-  glyphResetButton = Button.new(term.window.width-36, 2, 0, 0, "Reset", function()
+  glyphResetButton = Button.new(term.window.width-36, 16, 0, 0, "Reset", function()
     glyphListWindow.reset()
   end),
   dhdEntryButton = Button.new(53, 7, 0, 0, "DHD", function()
@@ -1482,7 +1630,7 @@ buttons = {
     editGateEntryMode = false
     MainHold = false
   end),
-  helpButton = Button.new(41, 39, 0, 0, "Help", function()
+  helpButton = Button.new(8, 41, 0, 0, "Help", function()
     help.toggle()
   end),
 }
@@ -1616,6 +1764,7 @@ ChildThread = {
 }
 -- End of Thread Creation ----------------------------------------------------------
 
+glyphListWindow.initialize(GateType)
 gateRingDisplay.initialize()
 function mainInterface()
   clearDisplay()

@@ -1,6 +1,6 @@
 --[[
 Created By: Augur ShicKla
-v1.1.0
+v1.1.1
 ]]--
 
 
@@ -139,7 +139,7 @@ function compareVersions()
   if LocalVersions.dialer == nil then
     LocalVersions.dialer = ReleaseVersions.dialer
   end
-  if isVersionGreater(LocalVersions.dialer.ver, ReleaseVersions.dialer.ver) then
+  if LocalVersions.dialer == nil or isVersionGreater(LocalVersions.dialer.ver, ReleaseVersions.dialer.ver) then
     print("There is a new version of the Dialer. ")
     changelogShow()
     io.write("Would you like to update, yes or no? ")
@@ -175,6 +175,7 @@ function checkForDialer()
     print("Installing Dialer Program, Please Wait")
     downloadManifestedFiles(ReleaseVersions.dialer)
     print("Dialer Program Has Been Installed")
+    LocalVersions.dialer = ReleaseVersions.dialer
   end
 end
 

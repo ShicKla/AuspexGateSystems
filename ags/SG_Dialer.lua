@@ -48,8 +48,8 @@ end
 -- Declarations --------------------------------------------------------------------
 sg = c.stargate
 
-GlyphsMW = {"Monoceros", "Centaurus", "Scorpius", "Sculptor", "Bootes", "Virgo", "Pisces", "Scutum", "Sextans", "Sagittarius", "Hydra", "Leo Minor", "Eridanus", "Libra", "Aries", "Serpens Caput", "Andromeda", "Pegasus", "Cetus", "Leo", "Gemini", "Corona Australis", "Auriga", "Piscis Austrinus", "Orion", "Lynx", "Capricornus", "Canis Minor", "Taurus", "Norma", "Cancer", "Perseus", "Crater", "Equuleus", "Microscopium", "Aquarius", "Triangulum"}
-GlyphsPG = {"Acjesis", "Lenchan", "Alura", "Ca Po", "Laylox", "Ecrumig", "Avoniv", "Bydo", "Aaxel", "Aldeni", "Setas", "Arami", "Danami", "Poco Re", "Robandus", "Recktic", "Zamilloz", "Subido", "Dawnre", "Salma", "Hamlinto", "Elenami", "Tahnan", "Zeo", "Roehi", "Once El", "Baselai", "Sandovi", "Illume", "Amiwill", "Sibbron", "Gilltin", "Abrin", "Ramnon", "Olavii", "Hacemill"}
+GlyphsMW = {"Andromeda","Aquarius","Aries","Auriga","Bootes","Cancer","Canis Minor","Capricornus","Centaurus","Cetus","Corona Australis","Crater","Equuleus","Eridanus","Gemini","Hydra","Leo","Leo Minor","Libra","Lynx","Microscopium","Monoceros","Norma","Orion","Pegasus","Perseus","Pisces","Piscis Austrinus","Sagittarius","Scorpius","Sculptor","Scutum","Serpens Caput","Sextans","Taurus","Triangulum","Virgo"}
+GlyphsPG = {"Aaxel","Abrin","Acjesis","Aldeni","Alura","Amiwill","Arami","Avoniv","Baselai","Bydo","Ca Po","Danami","Dawnre","Ecrumig","Elenami","Gilltin","Hacemill","Hamlinto","Illume","Laylox","Lenchan","Olavii","Once El","Poco Re","Ramnon","Recktic","Robandus","Roehi","Salma","Sandovi","Setas","Sibbron","Subido","Tahnan","Zamilloz","Zeo"}
 
 GateType = ""
 GateTypeName = ""
@@ -543,7 +543,6 @@ function glyphListWindow.initialize(glyphType)
   elseif glyphType == "PG" then
     self.glyphs = GlyphsPG
   end
-  if glyphType == "MW" or glyphType == "PG" then table.sort(self.glyphs) end
   gpu.fill(self.xPos-self.width, self.yPos, 2*self.width, term.window.height-8, " ")
   self.width = 1
   self.xPos = term.window.width

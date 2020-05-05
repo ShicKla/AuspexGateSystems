@@ -136,9 +136,6 @@ function compareVersions()
     shell.execute("/ags/AuspexGateSystems.lua")
     forceExit(true)
   end
-  if LocalVersions.dialer == nil then
-    LocalVersions.dialer = ReleaseVersions.dialer
-  end
   if LocalVersions.dialer == nil or isVersionGreater(LocalVersions.dialer.ver, ReleaseVersions.dialer.ver) then
     print("There is a new version of the Dialer. ")
     changelogShow()
@@ -176,6 +173,7 @@ function checkForDialer()
     downloadManifestedFiles(ReleaseVersions.dialer)
     print("Dialer Program Has Been Installed")
     LocalVersions.dialer = ReleaseVersions.dialer
+    saveVersionFile()
   end
 end
 

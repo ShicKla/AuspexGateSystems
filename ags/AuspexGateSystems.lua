@@ -139,9 +139,11 @@ function readVersionFile()
   local verString = "Launcher: "..LocalVersions.launcher.ver
   if LocalVersions.launcher.dev then verString = verString.." Dev" end
   gpu.set(term.window.width - unicode.len(verString), yPos, verString)
-  verString = "Dialer: "..LocalVersions.dialer.ver
-  if LocalVersions.dialer.dev then verString = verString.." Dev" end
-  gpu.set(term.window.width - unicode.len(verString), yPos+1, verString)
+  if LocalVersions.dialer ~= nil then
+    verString = "Dialer: "..LocalVersions.dialer.ver
+    if LocalVersions.dialer.dev then verString = verString.." Dev" end
+    gpu.set(term.window.width - unicode.len(verString), yPos+1, verString)
+  end
 end
 
 function saveVersionFile()
@@ -246,7 +248,7 @@ function compareVersions()
       launcherVersionCheck()
     end
 
-    if LocalVersions.dialer.dev then
+    if LocalVersions.dialer ~= nil and LocalVersions.dialer.dev then
       io.write([[
 ┌────────────────────────────────────────────────┐
 │Current installed dialer is the Dev version. Do │

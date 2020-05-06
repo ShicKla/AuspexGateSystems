@@ -1,6 +1,6 @@
 --[[
 Created By: Augur ShicKla
-v1.1.3
+v1.1.4
 ]]--
 
 component = require("component")
@@ -8,6 +8,7 @@ serialization = require("serialization")
 filesystem = require("filesystem")
 shell = require("shell")
 term = require("term")
+unicode = require("unicode")
 gpu = component.gpu
 internet = nil
 HasInternet = component.isAvailable("internet")

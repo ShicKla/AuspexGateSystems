@@ -15,10 +15,10 @@
                     "/ags/gateRing.ff"}
     },
     launcher={
-        ver = "1.1.3",
+        ver = "1.1.4",
         file = "AuspexGateSystems.lua",
-        note = {"1.1.3:",
-                " Minor Changes",
+        note = {"1.1.4:",
+                " Fixed Crash from unicode error",
                 "1.1.0:",
                 " Added a backup to floppy utility which can be found in the '/ags' directory"},
         manifest = {"/ags/AuspexGateSystems.lua",

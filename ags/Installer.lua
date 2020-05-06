@@ -1,7 +1,7 @@
 --[[
 Created By: Augur ShicKla
 Installer
-v1.1.0
+v1.1.1
 ]]--
 
 
@@ -15,9 +15,13 @@ internet = nil
 HasInternet = component.isAvailable("internet")
 if HasInternet then internet = require("internet") end
 
+<<<<<<< HEAD
 BranchURL = "https://raw.githubusercontent.com/ShicKla/AuspexGateSystems/release"
 ReleaseVersionsFile = "/ags/releaseVersions.ff"
 ReleaseVersions = nil
+=======
+local args, opts = shell.parse(...)
+>>>>>>> dev
 
 function onlineCheck() -- Check for internet connection
   if not HasInternet then
@@ -25,6 +29,18 @@ function onlineCheck() -- Check for internet connection
     os.exit(false)
   end
 end
+
+if opts.d then
+  print([[
+┌───────────────────────────┐
+│Installer Set to Dev Branch│
+└───────────────────────────┘]])
+  BranchURL = "https://raw.githubusercontent.com/ShicKla/AuspexGateSystems/dev"
+else
+  BranchURL = "https://raw.githubusercontent.com/ShicKla/AuspexGateSystems/release"
+end
+ReleaseVersionsFile = "/ags/releaseVersions.ff"
+ReleaseVersions = nil
 
 function createInstallDirectory() -- Creates `/ags` directory, if it doesn't already exist
   if not filesystem.isDirectory("/ags") then
@@ -39,13 +55,16 @@ end
 
 function checkForExistingInstall() -- Checks for existing install, and prompt user if one is found
   if filesystem.exists("/ags/AuspexGateSystems.lua") then
-    print("An existing installation of")
-    print("Auspex Gate Systems")
-    print("was found. Would you like to reinstall?")
-    io.write("Yes/No: ")
+    print([[
+┌────────────────────────────────────────────────┐
+│An existing installation of Auspex Gate Systems │
+│was found. Would you like to reinstall?         │
+└────────────────────────────────────────────────┘]])
+    term.setCursorBlink(true)
+    io.write(" Yes/No: ")
     local userInput = io.read("*l")
     if (userInput:lower()):sub(1,1) ~= "y" then
-      print("Canceling Installation")
+      print(" Canceling Installation")
       os.exit(true)
     end
   end
@@ -58,6 +77,7 @@ function downloadNeededFiles()
   ReleaseVersions = serialization.unserialize(file:read("*a"))
   file:close()
   downloadManifestedFiles(ReleaseVersions.launcher)
+  if opts.d then ReleaseVersions.launcher.dev = true end
   file = io.open("/ags/installedVersions.ff", "w")
   file:write("{launcher="..serialization.serialize(ReleaseVersions.launcher)..",}")
   file:close()
@@ -67,8 +87,13 @@ function createSystemShortcut()
   local agsBinFile = [[
 shell = require("shell")
 filesystem = require("filesystem")
+
+local args, opts = shell.parse(...)
+
 if filesystem.exists("/ags/AuspexGateSystems.lua") then
-  shell.execute("/ags/AuspexGateSystems.lua")
+  local options = "-"
+  for k,v in pairs(opts) do options = options..tostring(k) end
+  shell.execute("/ags/AuspexGateSystems.lua "..options)
 else
   io.stderr:write("Auspex Gate Systems is Not Correctly Installed\n")
 end

@@ -1,6 +1,6 @@
 --[[
 Created By: Augur ShicKla
-v1.1.2
+v1.1.3
 ]]--
 
 component = require("component")
@@ -158,10 +158,14 @@ function launcherVersionCheck(forceDownload)
     downloadManifestedFiles(ReleaseVersions.launcher)
     print("Launcher has been updated and will restart")
     LocalVersions.launcher = ReleaseVersions.launcher
-    if opts.d then LocalVersions.launcher.dev = true end
+    local runString = "/ags/AuspexGateSystems.lua"
+    if opts.d then 
+      LocalVersions.launcher.dev = true
+      runString = runString.." -d"
+    end
     saveVersionFile()
     shell.setWorkingDirectory(UsersWorkingDir)
-    shell.execute("/ags/AuspexGateSystems.lua")
+    shell.execute(runString)
     forceExit(true)
   end
 end

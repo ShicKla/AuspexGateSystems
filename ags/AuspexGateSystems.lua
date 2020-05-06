@@ -13,9 +13,6 @@ internet = nil
 HasInternet = component.isAvailable("internet")
 if HasInternet then internet = require("internet") end
 
-<<<<<<< HEAD
-BranchURL = "https://raw.githubusercontent.com/ShicKla/AuspexGateSystems/release"
-=======
 local args, opts = shell.parse(...)
 
 term.clear()

@@ -27,7 +27,6 @@ else
   BranchURL = "https://raw.githubusercontent.com/ShicKla/AuspexGateSystems/release"
 end
 
->>>>>>> dev
 ReleaseVersionsFile = "/ags/releaseVersions.ff"
 ReleaseVersions = nil
 LocalVersions = nil

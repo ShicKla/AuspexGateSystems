@@ -1,6 +1,6 @@
 --[[
 Created By: Augur ShicKla
-v1.1.1
+v1.1.2
 ]]--
 
 
@@ -14,7 +14,20 @@ internet = nil
 HasInternet = component.isAvailable("internet")
 if HasInternet then internet = require("internet") end
 
-BranchURL = "https://raw.githubusercontent.com/ShicKla/AuspexGateSystems/dev"
+local args, opts = shell.parse(...)
+
+term.clear()
+if opts.d then
+  BranchMsg = [[
+┌──────────────────────────┐
+│Launcher Set to Dev Branch│
+└──────────────────────────┘]]
+  BranchURL = "https://raw.githubusercontent.com/ShicKla/AuspexGateSystems/dev"
+else
+  BranchMsg = ""
+  BranchURL = "https://raw.githubusercontent.com/ShicKla/AuspexGateSystems/release"
+end
+
 ReleaseVersionsFile = "/ags/releaseVersions.ff"
 ReleaseVersions = nil
 LocalVersions = nil
@@ -27,6 +40,11 @@ SelfFileName = string.sub(debug.getinfo(2, "S").source, 2)
 function initialization()
   displayLogo()
   if LogoDisplayed then term.setCursor(1, 31) end
+  local cnt = 1
+  for line in BranchMsg:gmatch("[^\r\n]+") do
+    gpu.set(term.window.width-27, cnt, line)
+    cnt = cnt + 1
+  end
   if HasInternet then
     print("Running in Online Mode\n")
     getReleaseVersions()
@@ -208,7 +226,6 @@ function downloadFile(fileName, verbose)
   end
 end
 
-term.clear()
 initialization()
 readVersionFile()
 compareVersions()

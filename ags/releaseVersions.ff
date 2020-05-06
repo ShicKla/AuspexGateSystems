@@ -13,9 +13,9 @@
                     "/ags/gateRing.ff"}
     },
     launcher={
-        ver = "1.1.0",
+        ver = "1.1.2",
         file = "AuspexGateSystems.lua",
-        note = {"Added a backup to floppy utility which can be found in the '/ags' directory"},
+        note = {"1.1.0: Added a backup to floppy utility which can be found in the '/ags' directory"},
         manifest = {"/ags/AuspexGateSystems.lua",
                     "/ags/AuspexLogo.ff",
                     "/ags/floppyBackup.lua"}

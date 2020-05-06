@@ -3,7 +3,6 @@ Created By: Augur ShicKla
 v1.1.2
 ]]--
 
-
 component = require("component")
 serialization = require("serialization")
 filesystem = require("filesystem")
@@ -40,10 +39,10 @@ SelfFileName = string.sub(debug.getinfo(2, "S").source, 2)
 function initialization()
   displayLogo()
   if LogoDisplayed then term.setCursor(1, 31) end
-  local cnt = 1
+  local yPos = 1
   for line in BranchMsg:gmatch("[^\r\n]+") do
-    gpu.set(term.window.width-27, cnt, line)
-    cnt = cnt + 1
+    gpu.set(term.window.width-27, yPos, line)
+    yPos = yPos + 1
   end
   if HasInternet then
     print("Running in Online Mode\n")
@@ -135,6 +134,14 @@ function readVersionFile()
   end
   LocalVersions = serialization.unserialize(file:read("*a"))
   file:close()
+  local yPos = 1
+  if opts.d then yPos = 4 end
+  local verString = "Launcher: "..LocalVersions.launcher.ver
+  if LocalVersions.launcher.dev then verString = verString.." Dev" end
+  gpu.set(term.window.width - unicode.len(verString), yPos, verString)
+  verString = "Dialer: "..LocalVersions.dialer.ver
+  if LocalVersions.dialer.dev then verString = verString.." Dev" end
+  gpu.set(term.window.width - unicode.len(verString), yPos+1, verString)
 end
 
 function saveVersionFile()
@@ -143,19 +150,25 @@ function saveVersionFile()
   file:close()
 end
 
-function compareVersions()
-  if isVersionGreater(LocalVersions.launcher.ver, ReleaseVersions.launcher.ver) then
-    print("Launcher needs to update, please wait.")
+function launcherVersionCheck(forceDownload)
+  if isVersionGreater(LocalVersions.launcher.ver, ReleaseVersions.launcher.ver) or forceDownload then
+    if not forceDownload then print("Launcher needs to update, please wait.") end
     downloadManifestedFiles(ReleaseVersions.launcher)
     print("Launcher has been updated and will restart")
     LocalVersions.launcher = ReleaseVersions.launcher
+    if opts.d then LocalVersions.launcher.dev = true end
     saveVersionFile()
     shell.setWorkingDirectory(UsersWorkingDir)
     shell.execute("/ags/AuspexGateSystems.lua")
     forceExit(true)
   end
-  if LocalVersions.dialer == nil or isVersionGreater(LocalVersions.dialer.ver, ReleaseVersions.dialer.ver) then
-    print("There is a new version of the Dialer. ")
+end
+
+function dialerVersionCheck(forceDownload)
+  if LocalVersions.dialer == nil then
+    dialerNewInstall()
+  elseif isVersionGreater(LocalVersions.dialer.ver, ReleaseVersions.dialer.ver) or forceDownload then
+    if not forceDownload then print("There is a new version of the Dialer. ") end
     changelogShow()
     io.write("Would you like to update, yes or no? ")
     local userInput = io.read("*l")
@@ -164,10 +177,91 @@ function compareVersions()
       downloadManifestedFiles(ReleaseVersions.dialer)
       print("Dialer Program Has Been Updated")
       LocalVersions.dialer = ReleaseVersions.dialer
+      if opts.d then LocalVersions.dialer.dev = true end
       saveVersionFile()
     end
   end
-  checkForDialer()
+end
+
+function dialerNewInstall()
+  print("Dialer program will now be installed.")
+  changelogShow()
+  io.write("Press Enter to Continue ")
+  io.read("*l")
+  print("Installing Dialer Program, Please Wait")
+  downloadManifestedFiles(ReleaseVersions.dialer)
+  print("Dialer Program Has Been Installed")
+  LocalVersions.dialer = ReleaseVersions.dialer
+  if opts.d then LocalVersions.dialer.dev = true end
+  saveVersionFile()
+end
+
+function compareVersions()
+  if opts.d then
+    if not LocalVersions.launcher.dev then
+      io.write([[
+┌────────────────────────────────────────────────┐
+│Current installed launcher is the Release       │
+│version. Do you want to install the Dev version │
+│of the launcher?                                │
+└────────────────────────────────────────────────┘
+ Yes/No: ]])
+      local userInput = io.read("*l")
+      if (userInput:lower()):sub(1,1) == "y" then
+        launcherVersionCheck(true)
+      end
+    else
+      launcherVersionCheck()
+    end
+    
+    if not LocalVersions.dialer.dev then
+      io.write([[
+┌────────────────────────────────────────────────┐
+│Current installed dialer is the Release version.│
+│Do you want to install the Dev version of the   │
+│dialer?                                         │
+└────────────────────────────────────────────────┘
+ Yes/No: ]])
+      local userInput = io.read("*l")
+      if (userInput:lower()):sub(1,1) == "y" then
+        dialerNewInstall()
+      end
+    else
+      dialerVersionCheck()
+    end
+  else
+    if LocalVersions.launcher.dev then
+      io.write([[
+┌────────────────────────────────────────────────┐
+│Current installed launcher is the Dev version.  │
+│Do you want to install the Release version of   │
+│the launcher?                                   │
+└────────────────────────────────────────────────┘
+ Yes/No: ]])
+      local userInput = io.read("*l")
+      if (userInput:lower()):sub(1,1) == "y" then
+        launcherVersionCheck(true)
+      end
+    else
+      launcherVersionCheck()
+    end
+
+    if LocalVersions.dialer.dev then
+      io.write([[
+┌────────────────────────────────────────────────┐
+│Current installed dialer is the Dev version. Do │
+│you want to install the Release version of the  │
+│dialer?                                         │
+└────────────────────────────────────────────────┘
+ Yes/No: ]])
+      local userInput = io.read("*l")
+      if (userInput:lower()):sub(1,1) == "y" then
+        dialerNewInstall()
+      end
+    else
+      dialerVersionCheck()
+    end
+  end
 end
 
 function isVersionGreater(oldVer, newVer)
@@ -179,20 +273,6 @@ function isVersionGreater(oldVer, newVer)
     if tonumber(new[i]) > tonumber(old[i]) then return true end
   end
   return false
-end
-
-function checkForDialer()
-  if not filesystem.exists("/ags/SG_Dialer.lua") then
-    print("Dialer program will now be installed.")
-    changelogShow()
-    io.write("Press Enter to Continue ")
-    io.read("*l")
-    print("Installing Dialer Program, Please Wait")
-    downloadManifestedFiles(ReleaseVersions.dialer)
-    print("Dialer Program Has Been Installed")
-    LocalVersions.dialer = ReleaseVersions.dialer
-    saveVersionFile()
-  end
 end
 
 function changelogShow()
@@ -228,7 +308,7 @@ end
 
 initialization()
 readVersionFile()
-compareVersions()
+if HasInternet then compareVersions() end
 
 print("Launching Dialer")
 dofile("/ags/SG_Dialer.lua")

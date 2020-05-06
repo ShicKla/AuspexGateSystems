@@ -71,6 +71,7 @@ function downloadNeededFiles()
   ReleaseVersions = serialization.unserialize(file:read("*a"))
   file:close()
   downloadManifestedFiles(ReleaseVersions.launcher)
+  if opts.d then ReleaseVersions.launcher.dev = true end
   file = io.open("/ags/installedVersions.ff", "w")
   file:write("{launcher="..serialization.serialize(ReleaseVersions.launcher)..",}")
   file:close()

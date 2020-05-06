@@ -114,8 +114,13 @@ function createSystemShortcut()
   local agsBinFile = [[
 shell = require("shell")
 filesystem = require("filesystem")
+
+local args, opts = shell.parse(...)
+
 if filesystem.exists("/ags/AuspexGateSystems.lua") then
-  shell.execute("/ags/AuspexGateSystems.lua")
+  local options = "-"
+  for k,v in pairs(opts) do options = options..tostring(k) end
+  shell.execute("/ags/AuspexGateSystems.lua "..options)
 else
   io.stderr:write("Auspex Gate Systems is Not Correctly Installed\n")
 end

@@ -64,14 +64,16 @@ ActiveButtons = {}
 gateName = ""
 addAddressMode = false
 adrEntryType = ""
-DialingModeInterlocked = false
+local ComputerDialingInterlocked = false
 editGateEntryMode = false
 manualAdrEntryMode = false
 isDirectDialing = false
 AbortingDialing = false
 WasCanceled = false
-DialerInterlocked = false
+local OutgoingWormhole = false
+local DialingInterlocked = false
 DebugMode = false
+local DebugEventName = ""
 UNGateResetting = false
 RootDrive = nil
 DialedAddress = {}
@@ -517,7 +519,7 @@ end
 function GateEntriesWindow.touch(x, y)
   local self = GateEntriesWindow
   if x >= self.xPos and x <= 38 and y >= self.yPos and y <= 40 then
-    if not DialingModeInterlocked and not addAddressMode and not editGateEntryMode then
+    if not ComputerDialingInterlocked and not addAddressMode and not editGateEntryMode then
       self.selectedIndex = self.currentIndices[y - 2]
       if self.selectedIndex == nil then self.selectedIndex = 0 end
       self.display()
@@ -588,7 +590,7 @@ function glyphListWindow.display()
     for i2,v2 in ipairs(self.selectedGlyphs) do
       if i == v2 then gpu.setBackground(0x878787) end
     end
-    gpu.set(self.xPos+(self.width/2-unicode.len(v)/2), yOffset+i, v)
+    gpu.set(self.xPos+(self.width/2-unicode.len(v)/2), yOffset+i, tostring(v))
     gpu.setBackground(0x000000)
   end
   if #self.selectedGlyphs > 0 then
@@ -625,7 +627,7 @@ end
 
 function glyphListWindow.touch(x,y)
   local self = glyphListWindow
-  if not DialingModeInterlocked and not dialerAdrEntryMode and not self.locked then
+  if not ComputerDialingInterlocked and not dialerAdrEntryMode and not self.locked then
     if x > self.xPos and x < self.xPos+self.width-1 and y > self.yPos and y < self.yPos+self.height-1 then
       local selection = y-self.yPos-2
       local newSelection = true
@@ -726,7 +728,7 @@ function dialAddress(gateEntry, num)
     alert("CAN NOT DIAL DUE TO STARGATE BEING OPEN", 2)
     return
   end
-  if DialerInterlocked then
+  if sg.getGateStatus() ~= "idle" or sg.dialedAddress ~= "[]" then
     alert("CAN NOT DIAL DUE TO EXISTING GATE ACTIVITY", 2)
     return
   end
@@ -787,15 +789,15 @@ function dialAddress(gateEntry, num)
   gateRingDisplay.draw()
   glyphListWindow.reset()
   buttons.abortDialingButton:display()
-  DialingModeInterlocked = true
+  ComputerDialingInterlocked = true
   AbortingDialing = false
   glyphListWindow.locked = true
   dialNext(0)
-  while DialingModeInterlocked do
+  while ComputerDialingInterlocked do
     dialAddressWindow.display(gateEntry)
     os.sleep(0.05)
   end
-  DialingModeInterlocked = false
+  ComputerDialingInterlocked = false
   isDirectDialing = false
   MainHold = false
 end
@@ -813,6 +815,8 @@ function dialNext(dialed)
     else
       gateRingDisplay.traces(dialed+2, 1)
     end
+    if dialed ~= 0 then os.sleep(0.5) end
+    gateRingDisplay.glyphImage(glyph)
   end
 end
 
@@ -823,7 +827,7 @@ function abortDialing()
   alert("DIALING ABORTED", 2)
   sg.engageGate()
   while sg.getGateStatus() == "failing" do os.sleep() end
-  DialingModeInterlocked = false
+  ComputerDialingInterlocked = false
   AbortingDialing = false
   MainHold = false
 end
@@ -945,7 +949,6 @@ function dhdAddressEntry()
       WasCanceled = false
       DHD_AdrEntryMode = false
     end
-    if sg.getGateStatus() == "failing" then break end -- (Backup Check of Failing Event) Implies the BRB was pressed
   end
   if allGood then
     AddressBuffer = {}
@@ -1128,11 +1131,22 @@ gateRingDisplay = {}
 function gateRingDisplay.initialize()
   local self = gateRingDisplay
   self.isActive = false
+  if sg.getGateStatus() == "open" then
+    self.eventHorizonState = true
+  else
+    self.eventHorizonState = false
+  end
   self.chevronStates = {}
   self.traceStates = {}
+  self.engagedChevronCount = 0
   for i=1,9 do table.insert(self.chevronStates, false) end
   for i=1,9 do table.insert(self.traceStates, 0) end
   dofile("gateRing.ff") -- Loads the gate ring graphics
+  if GateType == "MW" then
+    dofile("glyphsMW.ff") -- Loads MW Glyph Images
+  elseif GateType == "UN" then
+    dofile("glyphsUN.ff") -- Loads UN Glyph Images
+  end
   self.ringTbl, self.topTbl, self.midTbl, self.botTbl = {},{},{},{}
   self.chevTbl = {"⢤⣤⣤⣤⣤⡤","⠀⢻⣿⣿⡟","⠀⠀⢻⡟"}
   self.dotTbl = {"⢀⣴⣶⣦⡀","⣿⣿⣿⣿⣿","⠈⠻⠿⠟⠁"}
@@ -1161,8 +1175,37 @@ function gateRingDisplay.draw()
   for i,v in ipairs(self.ringTbl) do
     gpu.set(50, 7+i, v)
   end
-  self.eventHorizon(GateStatusString == "open" or GateStatusString == "unstable")
+  self.eventHorizon()
   self.traces()
+end
+
+function gateRingDisplay.glyphImage(glyphName, isEngaged)
+  local self = gateRingDisplay
+  local xPos = 0
+  local yPos = 0
+  if GateType == "MW" then
+    xPos = 64
+    yPos = 15
+    gpu.fill(xPos, yPos, 32, 16, " ")
+  elseif GateType == "UN" then
+    xPos = 77
+    yPos = 14
+    gpu.fill(xPos, yPos, 6, 18, " ")
+  end
+  if glyphName == nil and isEngaged == nil then return end
+  if isEngaged then
+    gpu.setForeground(self.onColor)
+  else
+    gpu.setForeground(self.offColor)
+  end
+  if glyphName ~= nil or glyphName ~= "" then
+    local glyphImage = GlyphImages[glyphName]
+    for line in glyphImage:gmatch("[^\r\n]+") do
+      gpu.set(xPos, yPos, line)
+      yPos = yPos + 1
+    end
+  end
+  gpu.setForeground(0xFFFFFF)
 end
 
 function gateRingDisplay.traces(num, state)
@@ -1274,23 +1317,26 @@ end
 
 function gateRingDisplay.reset()
   local self = gateRingDisplay
+  self.engagedChevronCount = 0
   for i,v in ipairs(self.chevronStates) do self.chevronStates[i] = false end
   for i,v in ipairs(self.traceStates) do self.traceStates[i] = 0 end
   if self.isActive then
     for i,v in ipairs(self.chevronStates) do self.setChevron(i, v) end
     for i,v in ipairs(self.traceStates) do self.traces(i, v) end
   end
-  
 end
 
 function gateRingDisplay.eventHorizon(isOpen)
   local self = gateRingDisplay
+  if isOpen == nil then isOpen = self.eventHorizonState end
   if self.isActive then
     gpu.setForeground(self.ringColor)
     if isOpen then
       gpu.setBackground(self.horizonColor)
+      self.eventHorizonState = true
     else
       gpu.setBackground(0x000000)
+      self.eventHorizonState = false
     end
     for i,v in ipairs(self.topTbl) do
       gpu.set(66, 10+i, v)
@@ -1357,9 +1403,12 @@ function gateRingDisplay.setChevron(num, isEngaged)
   gpu.setForeground(0xFFFFFF)
 end
 
-function gateRingDisplay.dialedChevrons()
+function gateRingDisplay.dialedChevrons(count, hideImage)
   local self = gateRingDisplay
-  local count = #DialedAddress
+  if count <= self.engagedChevronCount then return end
+  local glyphName = DialedAddress[count]
+  if glyphName == "" then glyphName = "Point of Origin" end
+  if not hideImage then self.glyphImage(glyphName, true) end
   if count < 7 then
     self.setChevron(count, true)
     self.traces(count, 2)
@@ -1372,126 +1421,33 @@ function gateRingDisplay.dialedChevrons()
       self.traces(count+1, 2)
     end
   end
+  self.engagedChevronCount = self.engagedChevronCount + 1
 end
 
 function gateRingDisplay.UNreset()
-  if GateStatusString == "dialing" then
-    local self = gateRingDisplay
-    alert("STARGATE IS RESETTING", 1)
-    local sequence = {[1]=7,[2]=1,[3]=2,[4]=3,[5]=8,[6]=9,[7]=4,[8]=5,[9]=6}
-    local pos = 1
-    while GateStatusString == "dialing" do
-      if pos > 9 then pos = 1 end
-      self.setChevron(sequence[pos], true)
-      os.sleep(0.05)
-      self.setChevron(sequence[pos], false)
-      pos = pos + 1
-    end
-    self.setChevron(sequence[pos], false)
-    alert("STARGATE HAS RESET", 1)
+  while true do
+    os.sleep(0.05)
+    if sg.getGateStatus() == "dialing" then break end
   end
+  local self = gateRingDisplay
+  alert("STARGATE IS RESETTING", 1)
+  local sequence = {[1]=7,[2]=1,[3]=2,[4]=3,[5]=8,[6]=9,[7]=4,[8]=5,[9]=6}
+  local pos = 1
+  while sg.getGateStatus() == "dialing" do
+    if pos > 9 then pos = 1 end
+    self.setChevron(sequence[pos], true)
+    os.sleep()
+    self.setChevron(sequence[pos], false)
+    pos = pos + 1
+  end
+  self.setChevron(sequence[pos], false)
+  alert("STARGATE HAS RESET", 1)
 end
 -- End of Gate Ring Display --------------------------------------------------------
 
 -- Event Section -------------------------------------------------------------------
-EventListeners = {
-  dhdChevronEngaged = event.listen("stargate_dhd_chevron_engaged", function(evname, address, caller, symbolCount, lock, symbolName)
-    if not glyphListWindow.locked then
-      glyphListWindow.reset()
-    end
-  end),
-
-  eventSpinEngaged = event.listen("stargate_spin_chevron_engaged", function(evname, address, caller, num, lock, glyph)  
-    if DialingModeInterlocked then
-      if lock then
-        alert("CHEVRON "..math.floor(num).." LOCKED", 1)
-        gateRingDisplay.setChevron(7, true)
-        gateRingDisplay.traces(7, 2)
-        if not AbortingDialing then sg.engageGate() end
-        os.sleep()
-        DialingModeInterlocked = false
-      else
-        if (num) < 7 then
-          gateRingDisplay.setChevron(num, true)
-          gateRingDisplay.traces(num, 2)
-        else
-          gateRingDisplay.setChevron(num+1, true)
-          gateRingDisplay.traces(num+1, 2)
-        end        
-        os.sleep()
-        if not AbortingDialing then 
-          alert("CHEVRON "..math.floor(num).." ENGAGED", 0)
-          dialNext(num)
-        end
-      end
-    end
-  end),
-
-  openEvent = event.listen("stargate_open", function(evname, address, caller, isInitiating)
-    if GateType == "UN" and isInitiating then 
-      gateRingDisplay.traces(7, 2)
-      gateRingDisplay.setChevron(7, true)
-    end
-    if dialerAdrEntryMode then
-      dialerAdrEntryMode = false
-    else
-      glyphListWindow.locked = true
-      glyphListWindow.display()
-    end
-    while GateStatusString == "unstable" do os.sleep() end
-    gateRingDisplay.eventHorizon(true)
-  end),
-
-  closeEvent = event.listen("stargate_close", function()
-    UNGateResetting = true
-    alert("CONNECTION HAS CLOSED", 1)
-    while sg.getGateStatus() == "unstable" do os.sleep() end
-    gateRingDisplay.reset()
-    gateRingDisplay.eventHorizon(false)
-    if GateType == "UN" then gateRingDisplay.UNreset() end
-    DialerInterlocked = false
-    if not addAddressMode then
-      glyphListWindow.locked = false
-      glyphListWindow.display()
-    end
-    UNGateResetting = false
-  end),
-
-  incomingEvent = event.listen("stargate_incoming_wormhole", function(evname, address, caller, dialedAddressSize)
-    alert("INCOMING WORMHOLE", 2)
-    for i=1,dialedAddressSize do gateRingDisplay.chevronStates[i] = true end
-    if gateRingDisplay.isActive then
-      for i,v in ipairs(gateRingDisplay.chevronStates) do gateRingDisplay.setChevron(i, v) end
-    end
-  end),
-
-  failEvent = event.listen("stargate_failed", function(evname, address, caller, reason)
-    if not UNGateResetting then
-      UNGateResetting = true
-      if not DHD_AdrEntryMode then
-        if not AbortingDialing then
-          if reason == "address_malformed" then
-            alert("UNABLE TO ESTABLISH CONNECTION", 3)
-          elseif reason == "not_enough_power" then
-            alert("NOT ENOUGH POWER TO CONNECT", 3)
-          end
-        end
-        while sg.getGateStatus() == "failing" do os.sleep() end
-        gateRingDisplay.reset()
-        if GateType == "UN" then gateRingDisplay.UNreset() end
-        DialerInterlocked = false
-        DialingModeInterlocked = false
-        if not dialerAdrEntryMode then
-          glyphListWindow.locked = false
-          glyphListWindow.display()
-        end
-      end
-      if DHD_AdrEntryMode then DHD_AdrEntryMode = false end
-      UNGateResetting = false
-    end
-  end),
-
-  keyDownEvent = event.listen("key_down", function(evname, keyboardAddress, chr, code, playerName)
+local EventListeners = {
+  key_downEvent = event.listen("key_down", function(_, keyboardAddress, chr, code, playerName)
     table.insert(keyCombo, code)
     if #keyCombo > 1 and (keyCombo[1] == 29 and keyCombo[2] == 16) then -- Ctrl+Q to Completely Exit
       WasCanceled = true
@@ -1502,7 +1458,7 @@ EventListeners = {
     if code == 209 then GateEntriesWindow.increment(1) end  -- PgDn
   end),
 
-  keyUpEvent = event.listen("key_up", function(evname, keyboardAddress, chr, code, playerName)
+  key_upEvent = event.listen("key_up", function(_, keyboardAddress, chr, code, playerName)
     keyCombo = {}
     if code == 59 and buttons.helpButton.visible then -- Toggles the instructions if F1 is pressed then released
       help.toggle()
@@ -1517,7 +1473,7 @@ EventListeners = {
     end
   end),
 
-  touchEvent = event.listen("touch", function(evname, screenAddress, x, y, button, playerName)
+  touchEvent = event.listen("touch", function(_, screenAddress, x, y, button, playerName)
     if button == 0 then
       for i,v in ipairs(ActiveButtons) do
         if v:touch(x,y) then break end
@@ -1531,18 +1487,18 @@ EventListeners = {
     end
   end),
 
-  mouseWheelEvent = event.listen("scroll", function(evname, screenAddress, x, y, direction, playerName)
+  scrollEvent = event.listen("scroll", function(_, screenAddress, x, y, direction, playerName)
       GateEntriesWindow.increment(direction*-1)
   end),
-  
-  componentDisconnectEvent = event.listen("component_unavailable", function(evname, componentString)
+
+  component_unavailableEvent = event.listen("component_unavailable", function(_, componentString)
     if componentString == "stargate" then
       ErrorString = "Stargate Has Been Disconnected"
       HadNoError = false
       MainHold = false
     end
   end),
-  
+
   interruptedEvent = event.listen("interrupted", function()
     wasTerminated = true
     HadNoError = false
@@ -1551,8 +1507,114 @@ EventListeners = {
     if AlertThread ~= nil then AlertThread:kill() end
     for k,v in pairs(EventListeners) do event.cancel(v) end
     screen.setTouchModeInverted(false)
-  end)
+  end),
 }
+
+local eventFunctions = {}
+function eventFunctions.stargate_spin_chevron_engaged(_, _, caller, num, lock, glyph)
+  gateRingDisplay.glyphImage(glyph, true)
+  if lock then
+    alert("CHEVRON "..math.floor(num).." LOCKED", 1)
+    gateRingDisplay.setChevron(7, true)
+    gateRingDisplay.traces(7, 2)
+    if not AbortingDialing then sg.engageGate() end
+    os.sleep()
+    ComputerDialingInterlocked = false
+  else
+    if (num) < 7 then
+      gateRingDisplay.setChevron(num, true)
+      gateRingDisplay.traces(num, 2)
+    else
+      gateRingDisplay.setChevron(num+1, true)
+      gateRingDisplay.traces(num+1, 2)
+    end        
+    os.sleep()
+    if not AbortingDialing then 
+      alert("CHEVRON "..math.floor(num).." ENGAGED", 0)
+      dialNext(num)
+    end
+  end
+end
+
+function eventFunctions.stargate_incoming_wormhole(_, _, caller, dialedAddressSize)
+  alert("INCOMING WORMHOLE", 2)
+  for i=1,dialedAddressSize do gateRingDisplay.chevronStates[i] = true end
+  if gateRingDisplay.isActive then
+    for i,v in ipairs(gateRingDisplay.chevronStates) do gateRingDisplay.setChevron(i, v) end
+  end
+  -- thread.create(function()
+    -- while true do
+      -- if sg.dialedAddress ~= nil and sg.dialedAddress ~= "[]" then
+        -- alert(tostring(sg.dialedAddress), 3)
+        -- break
+      -- end
+    -- end
+  -- end)
+end
+
+function eventFunctions.stargate_open(_, _, caller, isInitiating)
+  if GateType == "UN" and not caller and isInitiating then 
+    gateRingDisplay.traces(7, 2)
+    gateRingDisplay.setChevron(7, true)
+    gateRingDisplay.glyphImage("Glyph 17", true)
+  end
+  if dialerAdrEntryMode then
+    dialerAdrEntryMode = false
+  end
+  glyphListWindow.locked = false
+  glyphListWindow.display()
+  os.sleep(2)
+  gateRingDisplay.eventHorizon(true)
+end
+
+function eventFunctions.stargate_close(_, _, caller, reason)
+  if GateType == "UN" and OutgoingWormhole then UNGateResetting = true end
+  if not addAddressMode then
+    glyphListWindow.locked = false
+    glyphListWindow.display()
+  end
+  gateRingDisplay.reset()
+  os.sleep(1.5)
+  alert("CONNECTION HAS CLOSED", 1)
+  gateRingDisplay.eventHorizon(false)
+end
+
+function eventFunctions.stargate_wormhole_closed_fully(_, _, caller, isInitiating)
+  OutgoingWormhole = false
+  if UNGateResetting then
+    gateRingDisplay.UNreset()
+    UNGateResetting = false
+  end
+end
+
+function eventFunctions.stargate_failed(_, _, caller, reason)
+  if reason == nil then return end
+  if GateType == "UN" then UNGateResetting = true end
+  if not AbortingDialing and not DHD_AdrEntryMode then
+    if reason == "address_malformed" then
+      alert("UNABLE TO ESTABLISH CONNECTION", 3)
+    elseif reason == "not_enough_power" then
+      alert("NOT ENOUGH POWER TO CONNECT", 3)
+    elseif reason == "aborted" then
+      alert("ABORTED BY HAND DIALER", 2)
+    end
+  end
+  gateRingDisplay.glyphImage()
+  gateRingDisplay.reset()
+  if not dialerAdrEntryMode then
+    glyphListWindow.locked = false
+    glyphListWindow.display()
+  end
+  if DHD_AdrEntryMode then DHD_AdrEntryMode = false end
+  if GateType == "UN" then
+    thread.create(function()
+      UNGateResetting = true
+      gateRingDisplay.UNreset()
+      UNGateResetting = false
+    end)
+  end
+  ComputerDialingInterlocked = false
+end
 -- End of Event Section ------------------------------------------------------------
 
 -- Buttons -------------------------------------------------------------------------
@@ -1604,7 +1666,14 @@ buttons = {
     abortDialing()
   end),
   glyphResetButton = Button.new(term.window.width-36, 16, 0, 0, "Reset", function()
+    if GateStatusBool == nil and sg.dialedAddress ~= nil and sg.dialedAddress ~= "[]" then
+       sg.engageGate()
+    end
     glyphListWindow.reset()
+    for i,v in ipairs(gateRingDisplay.traceStates) do gateRingDisplay.traceStates[i] = 0 end
+    if gateRingDisplay.isActive then
+      for i,v in ipairs(gateRingDisplay.traceStates) do gateRingDisplay.traces(i, v) end
+    end
   end),
   dhdEntryButton = Button.new(53, 7, 0, 0, "DHD", function()
     dhdAddressEntry()
@@ -1662,7 +1731,9 @@ function help.toggle()
     " F4: Toggles Touch Screen Mode",
     " F12: Toggles Debug Information",
     " Ctrl+Q: Closes the Dialer Program",
-    " Ctrl+C: Forces the Dialer to Close"
+    " Ctrl+C: Forces the Dialer to Close",
+    " ",
+    "Dialer Version: "..Version
   }
   local self = help
   self.xPos = 41
@@ -1692,7 +1763,7 @@ function toggleDebugMode()
       DebugMode = true
       alert("DEBUG MODE ACTIVATED", 1)
     elseif DebugMode then
-      alert("DEBUG MOD DEACTIVATED", 1)
+      alert("DEBUG MODE DEACTIVATED", 1)
       DebugMode = false
       os.sleep()
       gpu.fill(150, 43, 10, 1, " ")
@@ -1712,56 +1783,97 @@ GateEntriesWindow.set()
 
 -- Creating Threads ----------------------------------------------------------------
 ChildThread = {
-  statusThread = thread.create(function ()
+  statusThread = thread.create(function()
     displayInfoCenter()
     while MainLoop do
       displaySystemStatus()
       os.sleep()
     end
   end),
+  
+  -- userInputThread = thread.create(function()
+    -- while true do
+      -- local _, screenAddress, x, y, button, playerName = event.pullMultiple("touch")
+      -- if button == 0 then
+        -- for i,v in ipairs(ActiveButtons) do
+          -- if v:touch(x,y) then break end
+        -- end
+        -- glyphListWindow.touch(x, y)
+        -- GateEntriesWindow.touch(x, y)
+      -- end
+      -- if DebugMode then
+        -- gpu.fill(150, 43, 10, 1, " ") -- For Debug
+        -- gpu.set(150, 43, x..", "..y)  -- For Debug
+      -- end
+    -- end
+  -- end),
+  
+  eventHandlerThread = thread.create(function()
+    while true do
+      local eventTable = {event.pull()}
+      local eventName = eventTable[1]
+      if type(eventFunctions[eventName]) == "function" then thread.create(eventFunctions[eventName], table.unpack(eventTable)) end
+      if DebugMode and eventName ~= "thread_exit" and eventName ~= "drop" and eventName ~= "touch" then DebugEventName = eventName end -- For Debug
+    end  
+  end),
+  
   gateStatusThread = thread.create(function()
     while MainLoop do
       GateStatusString, GateStatusBool = sg.getGateStatus()
-      if GateStatusBool ~= nil then
-        if GateStatusBool == true and not buttons.closeGateButton.visible then
+      if GateStatusBool ~= nil and GateStatusBool == true then
+        OutgoingWormhole = true
+        if not buttons.closeGateButton.visible then
           buttons.closeGateButton:display()
         end
       elseif buttons.closeGateButton.visible then
         buttons.closeGateButton:hide()
       end
-      if GateStatusString == "dialing" or GateStatusString == "dialing_computer" then
-        DialedAddress = parseAddressString(sg.dialedAddress, GateType)
-        gateRingDisplay.dialedChevrons()
+      
+      if GateStatusString == "dialing" and not UNGateResetting and not DialingInterlocked then
+        DialingInterlocked = true
+        if sg.dialedAddress == "[]" then glyphListWindow.reset() end
       end
-      if not UNGateResetting then
-        if GateStatusString == "dialing" then
-          glyphListWindow.locked = true
-          glyphListWindow.showAddress()
+      
+      if GateStatusString == "dialing" or GateStatusString == "dialing_computer" then
+        if not UNGateResetting then
+          if buttons.glyphResetButton.visible then buttons.glyphResetButton:hide() end
+          if not glyphListWindow.locked then glyphListWindow.locked = true end
+          DialedAddress = parseAddressString(sg.dialedAddress, GateType)
+          if GateStatusString == "dialing" then glyphListWindow.showAddress() end
+          gateRingDisplay.dialedChevrons(#DialedAddress)
         end
       end
-      if not DialerInterlocked and GateStatusString ~= "idle" then
-        DialerInterlocked = true
+      if GateStatusString == "idle" and not ComputerDialingInterlocked then
+        if DialingInterlocked then DialingInterlocked = false end
+        if glyphListWindow.locked then
+          glyphListWindow.locked = false
+          glyphListWindow.display()
+        end
       end
-      if GateStatusString == "dialing" and DialingModeInterlocked and not AbortingDialing then abortDialing() end
+      if GateStatusString == "dialing" and ComputerDialingInterlocked and not AbortingDialing then abortDialing() end
       os.sleep()
     end
   end),
+  
   debugWindowThread = thread.create(function() -- For Debug
     while MainLoop do
       local used = RootDrive.spaceUsed()
       local total = RootDrive.spaceTotal()
+      local dialedAddress = sg.dialedAddress
       gpu.fill(3, 48, 40, 1, " ")
       if DebugMode then
+        if ChildThread.gateStatusThread:status() == "dead" then alert("gateStatusThread is dead", 3) end
         gpu.fill(48, 45, 110, 4, " ")
-        gpu.set(48, 45, "Dialer Version: "..Version)
-        gpu.set(48, 46, "DialerInterlocked: "..tostring(DialerInterlocked))
-        gpu.set(48, 47, "DialingModeInterlocked: "..tostring(DialingModeInterlocked))
+        gpu.set(48, 45, "DHD_AdrEntryMode: "..tostring(DHD_AdrEntryMode))
+        gpu.set(48, 46, "DialingInterlocked: "..tostring(DialingInterlocked))
+        gpu.set(48, 47, "ComputerDialingInterlocked: "..tostring(ComputerDialingInterlocked))
         gpu.set(84, 46, "dialerAdrEntryMode: "..tostring(dialerAdrEntryMode))
         gpu.set(84, 45, "glyphListWindow.locked: "..tostring(glyphListWindow.locked))
-        gpu.set(48, 48, serialization.serialize(DialedAddress))
+        gpu.set(48, 48, tostring(dialedAddress))
         gpu.set(84, 47, "Gate Status: "..tostring(GateStatusString).." | "..tostring(GateStatusBool))
         gpu.set(120, 45, "Drive Usage: "..used.."/"..total.." "..math.floor((used/total)*100).."%")
         gpu.set(120, 46, "manualAdrEntryMode: "..tostring(manualAdrEntryMode))
+        gpu.set(120, 47, DebugEventName)
       end
       os.sleep()
     end
@@ -1771,12 +1883,18 @@ ChildThread = {
 
 glyphListWindow.initialize(GateType)
 gateRingDisplay.initialize()
+gateRingDisplay.draw()
+if sg.dialedAddress ~= nil and sg.dialedAddress ~= "[]" then
+  DialedAddress = parseAddressString(sg.dialedAddress, GateType)
+  glyphListWindow.showAddress()
+  for i in ipairs(DialedAddress) do gateRingDisplay.dialedChevrons(i, true) end
+end
+
 function mainInterface()
   clearDisplay()
   MainHold = true
-  gateRingDisplay.draw()
   if glyphListWindow.glyphType ~= GateType then glyphListWindow.initialize(GateType) end
-  if sg.getGateStatus == "open" then glyphListWindow.showAddress() end
+  gateRingDisplay.draw()
   glyphListWindow.display()
   buttons.quitButton:display()
   buttons.dialButton:display()
@@ -1784,13 +1902,14 @@ function mainInterface()
   buttons.addEntryButton:display()
   help.visible = false
   buttons.helpButton:display()
-  while MainHold do os.sleep() end
+  -- while MainHold do os.sleep() end
 end
 
 wasTerminated = false
 HadNoError = true
 while MainLoop do
   mainInterface()
+  while MainHold do os.sleep() end
   if not HadNoError then
     MainLoop = false
   end

@@ -11,7 +11,9 @@
                 " Fixed bugs with manual address entry and handheld dialer address entry",
                 " Hopefully fixed 'Orion' showing as 'Urion' on some systems"},
         manifest = {"/ags/SG_Dialer.lua",
-                    "/ags/gateRing.ff"}
+                    "/ags/gateRing.ff",
+                    "/ags/glyphsMW.ff",
+                    "/ags/glyphsUN.ff"}
     },
     launcher={
         ver = "1.1.4",

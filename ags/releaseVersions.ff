@@ -16,7 +16,7 @@
                     "/ags/glyphsUN.ff"}
     },
     launcher={
-        ver = "1.1.4",
+        ver = "1.1.5",
         file = "AuspexGateSystems.lua",
         note = {"1.1.4:",
                 " Fixed Crash from unicode error",

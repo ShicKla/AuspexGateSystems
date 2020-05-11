@@ -9,7 +9,7 @@ Tier 3 Screen
 ]]--
 
 Version = "0.6.0"
-c = require("component")
+component = require("component")
 computer = require("computer")
 event = require("event")
 os = require("os")
@@ -18,8 +18,8 @@ thread = require("thread")
 serialization = require("serialization")
 unicode = require("unicode")
 filesystem = require("filesystem")
-screen = c.screen
-gpu = c.gpu
+screen = component.screen
+gpu = component.gpu
 
 
 -- Checking System Requirements are Met --------------------------------------------
@@ -31,12 +31,12 @@ if computer.totalMemory() < 1048576 then
   io.stderr:write("Not Enough Memory To Run. Please Install More Memory.")
   os.exit(1)
 end
-if not c.isAvailable("stargate") then
+if not component.isAvailable("stargate") then
   io.stderr:write("No Stargate Connected.")
   os.exit(1)
 end
 NumberOfGates = 0
-for k,v in c.list() do
+for k,v in component.list() do
   if v == "stargate" then NumberOfGates = NumberOfGates+1 end
 end
 if NumberOfGates > 1 then
@@ -46,7 +46,7 @@ end
 -- End of Checking System Requirements ---------------------------------------------
 
 -- Declarations --------------------------------------------------------------------
-sg = c.stargate
+sg = component.stargate
 
 GlyphsMW = {"Andromeda","Aquarius","Aries","Auriga","Bootes","Cancer","Canis Minor","Capricornus","Centaurus","Cetus","Corona Australis","Crater","Equuleus","Eridanus","Gemini","Hydra","Leo","Leo Minor","Libra","Lynx","Microscopium","Monoceros","Norma","Orion","Pegasus","Perseus","Pisces","Piscis Austrinus","Sagittarius","Scorpius","Sculptor","Scutum","Serpens Caput","Sextans","Taurus","Triangulum","Virgo"}
 GlyphsPG = {"Aaxel","Abrin","Acjesis","Aldeni","Alura","Amiwill","Arami","Avoniv","Baselai","Bydo","Ca Po","Danami","Dawnre","Ecrumig","Elenami","Gilltin","Hacemill","Hamlinto","Illume","Laylox","Lenchan","Olavii","Once El","Poco Re","Ramnon","Recktic","Robandus","Roehi","Salma","Sandovi","Setas","Sibbron","Subido","Tahnan","Zamilloz","Zeo"}
@@ -353,6 +353,10 @@ function userInput(x, y, maxLength)
   term.setCursorBlink(false)
   for _,v in pairs(ChildThread) do v:resume() end
   return inputString
+end
+
+function errorHandler(err)
+  
 end
 -- End of Special Functions --------------------------------------------------------
 
@@ -695,6 +699,7 @@ function glyphListWindow.insertGlyph(glyph)
   for i2,v2 in ipairs(glyphListWindow.glyphs) do
     if glyph == v2 then table.insert(glyphListWindow.selectedGlyphs, i2) end
   end
+  if glyph == "Glyph 17" or glyph == "Point of Origin" or glyph == "Subido" then table.insert(glyphListWindow.selectedGlyphs, -1) end
   glyphListWindow.display()
 end
 
@@ -820,7 +825,8 @@ function dialAddress(gateEntry, num)
   end
   ComputerDialingInterlocked = false
   isDirectDialing = false
-  mainInterface()
+  gpu.fill(41, 2, 38, 5, " ")
+  mainInterface("noClear")
 end
 
 function dialNext(dialed)
@@ -850,7 +856,8 @@ function abortDialing()
   while sg.getGateStatus() == "failing" do os.sleep() end
   ComputerDialingInterlocked = false
   AbortingDialing = false
-  mainInterface()
+  gpu.fill(41, 2, 38, 5, " ")
+  mainInterface("noClear")
 end
 -- End Address Dialing -------------------------------------------------------------
 
@@ -1167,7 +1174,11 @@ function gateRingDisplay.initialize()
   self.chevronStates = {}
   self.traceStates = {}
   self.engagedChevronCount = 0
-  for i=1,9 do table.insert(self.chevronStates, false) end
+  if GateStatusBool == false then
+    for i=1,9 do table.insert(self.chevronStates, true) end
+  else
+    for i=1,9 do table.insert(self.chevronStates, false) end
+  end
   for i=1,9 do table.insert(self.traceStates, 0) end
   dofile("gateRing.ff") -- Loads the gate ring graphics
   if GateType == "MW" then
@@ -1357,14 +1368,17 @@ end
 function gateRingDisplay.eventHorizon(isOpen)
   local self = gateRingDisplay
   if isOpen == nil then isOpen = self.eventHorizonState end
+  if isOpen then
+    self.eventHorizonState = true
+  else
+    self.eventHorizonState = false
+  end
   if self.isActive then
     gpu.setForeground(self.ringColor)
     if isOpen then
       gpu.setBackground(self.horizonColor)
-      self.eventHorizonState = true
     else
       gpu.setBackground(0x000000)
-      self.eventHorizonState = false
     end
     for i,v in ipairs(self.topTbl) do
       gpu.set(66, 10+i, v)
@@ -1441,7 +1455,7 @@ function gateRingDisplay.dialedChevrons(count, hideImage)
     self.setChevron(count, true)
     self.traces(count, 2)
   else
-    if DialedAddress[count] == "" then
+    if glyphName == "Point of Origin" or glyphName == "Glyph 17" or glyphName == "Subido" then
       self.setChevron(7, true)
       self.traces(7, 2)
     else
@@ -1527,7 +1541,6 @@ local EventListeners = {
 
   interruptedEvent = event.listen("interrupted", function()
     wasTerminated = true
-    -- HadNoError = false
     MainLoop = false
   end),
 }
@@ -1564,18 +1577,10 @@ function eventFunctions.stargate_incoming_wormhole(_, _, caller, dialedAddressSi
   if gateRingDisplay.isActive then
     for i,v in ipairs(gateRingDisplay.chevronStates) do gateRingDisplay.setChevron(i, v) end
   end
-  -- thread.create(function()
-    -- while true do
-      -- if sg.dialedAddress ~= nil and sg.dialedAddress ~= "[]" then
-        -- alert(tostring(sg.dialedAddress), 3)
-        -- break
-      -- end
-    -- end
-  -- end)
 end
 
 function eventFunctions.stargate_open(_, _, caller, isInitiating)
-  if GateType == "UN" and not caller and isInitiating then 
+  if GateType == "UN" and isInitiating then 
     gateRingDisplay.traces(7, 2)
     gateRingDisplay.setChevron(7, true)
     gateRingDisplay.glyphImage("Glyph 17", true)
@@ -1592,6 +1597,7 @@ end
 function eventFunctions.stargate_close(_, _, caller, reason)
   if GateType == "UN" and OutgoingWormhole then UNGateResetting = true end
   if not addAddressMode then
+    table.remove(glyphListWindow.selectedGlyphs)
     glyphListWindow.locked = false
     glyphListWindow.display()
   end
@@ -1644,15 +1650,6 @@ buttons = {
   dialButton = Button.new(41, 2, 0, 3, "  Dial  ", function()
     dialAddress(gateEntries[GateEntriesWindow.selectedIndex])
   end),
-  dial7GlyphsButton = Button.new(41, 4, 0, 3, "7 Glyphs", function()
-    dialAddress(gateEntries[GateEntriesWindow.selectedIndex], 7)
-  end, false),
-  dial8GlyphsButton = Button.new(41, 6, 0, 3, "8 Glyphs", function()
-    dialAddress(gateEntries[GateEntriesWindow.selectedIndex], 8)
-  end, false),
-  dial9GlyphsButton = Button.new(41, 8, 0, 3, "9 Glyphs", function()
-    dialAddress(gateEntries[GateEntriesWindow.selectedIndex], 9)
-  end, false),
   editButton = Button.new(64, 2, 0, 3, "Edit Entry", function()
       editGateEntry(GateEntriesWindow.selectedIndex)
   end),
@@ -1729,7 +1726,7 @@ end)
 HelpButton = Button.new(8, 41, 0, 0, "Help", function()
   HelpWindow.toggle()
 end)
--- End Buttons ---------------------------------------------------------------------
+-- End of Buttons ------------------------------------------------------------------
 
 -- Help Window ---------------------------------------------------------------------
 HelpWindow = {visible=false}
@@ -1767,6 +1764,7 @@ function HelpWindow.toggle()
     mainInterface()
   elseif not self.visible then
     self.visible = true
+    gateRingDisplay.isActive = false
     gpu.fill(self.xPos, self.yPos, self.width, self.height, " ")
     gpu.set(self.xPos, self.yPos,               "╔══════════════════════════════════════════════════════════════════════════════╗")
     gpu.set(self.xPos, self.yPos+self.height-1, "╚══════════════════════════════════════════════════════════════════════════════╝")
@@ -1782,25 +1780,31 @@ end
 -- Toggle Debug Mode ---------------------------------------------------------------
 function toggleDebugMode()
     if not DebugMode then
-      DebugMode = true
       alert("DEBUG MODE ACTIVATED", 1)
+      DebugMode = true
+      ChildThread.debugWindowThread:resume()
+      gpu.set(47, 44, "╡Debug Info╞═══════════════")
     elseif DebugMode then
       alert("DEBUG MODE DEACTIVATED", 1)
       DebugMode = false
+      ChildThread.debugWindowThread:suspend()
       os.sleep()
       gpu.fill(150, 43, 10, 1, " ")
       gpu.fill(48, 45, 110, 4, " ")
+      gpu.set(47, 44, "╡This Stargate's Addresses╞")
       displayLocalAddress(48,term.window.height-5)
     end 
 end
 -- End of Toggle Debug Mode --------------------------------------------------------
 
-localMWAddress = sg.stargateAddress.MILKYWAY
-localUNAddress = sg.stargateAddress.UNIVERSE
-localPGAddress = sg.stargateAddress.PEGASUS
-term.clear()
-readAddressFile()
-GateEntriesWindow.set()
+HadNoError, ErrorMessage = xpcall(function()
+  localMWAddress = sg.stargateAddress.MILKYWAY
+  localUNAddress = sg.stargateAddress.UNIVERSE
+  localPGAddress = sg.stargateAddress.PEGASUS
+  term.clear()
+  readAddressFile()
+  GateEntriesWindow.set()
+end, debug.traceback)
 wasTerminated = false
 HadNoError = true
 MainLoop = true
@@ -1808,36 +1812,28 @@ MainLoop = true
 -- Creating Threads ----------------------------------------------------------------
 ChildThread = {
   statusThread = thread.create(function()
-    local success, msg = pcall(function()
+    HadNoError, ErrorMessage = xpcall(function()
       displayInfoCenter()
       while HadNoError and MainLoop do
         displaySystemStatus()
         os.sleep()
       end
-    end)
-    if not success then
-      HadNoError = false
-      ErrorMessage = debug.traceback(msg)
-    end
+    end, debug.traceback)
   end),
 
   eventHandlerThread = thread.create(function()
-    local success, msg = pcall(function()
+    HadNoError, ErrorMessage = xpcall(function()
       while HadNoError and MainLoop do
         local eventTable = {event.pull()}
         local eventName = eventTable[1]
         if type(eventFunctions[eventName]) == "function" then thread.create(eventFunctions[eventName], table.unpack(eventTable)) end
         if DebugMode and eventName ~= "thread_exit" and eventName ~= "drop" and eventName ~= "touch" then DebugEventName = eventName end -- For Debug
       end  
-    end)
-    if not success then
-      HadNoError = false
-      ErrorMessage = debug.traceback(msg)
-    end
+    end, debug.traceback)
   end),
   
   gateStatusThread = thread.create(function()
-    local success, msg = pcall(function()
+    HadNoError, ErrorMessage = xpcall(function()
       CloseGateButton:display()
       while HadNoError and MainLoop do
         GateStatusString, GateStatusBool = sg.getGateStatus()
@@ -1874,15 +1870,11 @@ ChildThread = {
         if GateStatusString == "dialing" and ComputerDialingInterlocked and not AbortingDialing then abortDialing() end
         os.sleep()
       end
-    end)
-    if not success then
-      HadNoError = false
-      ErrorMessage = debug.traceback(msg)
-    end
+    end, debug.traceback)
   end),
   
   debugWindowThread = thread.create(function() -- For Debug
-    local success, msg = pcall(function()
+    HadNoError, ErrorMessage = xpcall(function()
       while HadNoError and MainLoop do
         local used = RootDrive.spaceUsed()
         local total = RootDrive.spaceTotal()
@@ -1904,31 +1896,17 @@ ChildThread = {
         end
         os.sleep()
       end
-    end)
-    if not success then
-      HadNoError = false
-      ErrorMessage = debug.traceback(msg)
-    end
+    end, debug.traceback)
   end)
 }
 -- End of Thread Creation ----------------------------------------------------------
 
-QuitButton:display()
-HelpWindow.visible = false
-HelpButton:display()
-glyphListWindow.initialize(GateType)
-gateRingDisplay.initialize()
-gateRingDisplay.draw()
-if sg.dialedAddress ~= nil and sg.dialedAddress ~= "[]" then
-  DialedAddress = parseAddressString(sg.dialedAddress, GateType)
-  glyphListWindow.showAddress()
-  for i in ipairs(DialedAddress) do gateRingDisplay.dialedChevrons(i, true) end
-end
-
-function mainInterface()
-  clearDisplay()
+function mainInterface(shouldClear)
+  if shouldClear == nil then 
+    clearDisplay() 
+    gateRingDisplay.draw()
+  end
   if glyphListWindow.glyphType ~= GateType then glyphListWindow.initialize(GateType) end
-  gateRingDisplay.draw()
   glyphListWindow.display()
   buttons.dialButton:display()
   buttons.editButton:display()
@@ -1936,13 +1914,22 @@ function mainInterface()
   if HelpButton.disabled then HelpButton:disable(false) end
 end
 
-mainInterface()
-while MainLoop do
-  if not HadNoError then
-    MainLoop = false
+HadNoError, ErrorMessage = xpcall(function()
+  ChildThread.debugWindowThread:suspend()
+  QuitButton:display()
+  HelpWindow.visible = false
+  HelpButton:display()
+  glyphListWindow.initialize(GateType)
+  gateRingDisplay.initialize()
+  gateRingDisplay.draw()
+  if sg.dialedAddress ~= nil and sg.dialedAddress ~= "[]" then
+    DialedAddress = parseAddressString(sg.dialedAddress, GateType)
+    glyphListWindow.showAddress()
+    for i in ipairs(DialedAddress) do gateRingDisplay.dialedChevrons(i, true) end
   end
-  os.sleep(0.05)
-end
+  mainInterface()
+end, debug.traceback)
+while MainLoop and HadNoError do os.sleep(0.05) end
 
 -- Closing Procedures --------------------------------------------------------------
 term.clear()
@@ -1960,6 +1947,7 @@ if wasTerminated or not HadNoError then
 else
   print("Dialer Program Closed")
 end
-io.stderr:write(ErrorMessage)
+if not HadNoError then io.stderr:write(ErrorMessage) end
 screen.setTouchModeInverted(false)
 if not term.getCursorBlink() then term.setCursorBlink(true) end
+

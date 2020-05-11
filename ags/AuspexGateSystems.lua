@@ -221,7 +221,7 @@ function compareVersions()
       launcherVersionCheck()
     end
     
-    if not LocalVersions.dialer.dev then
+    if LocalVersions.dialer ~= nil and not LocalVersions.dialer.dev then
       io.write([[
 ┌────────────────────────────────────────────────┐
 │Current installed dialer is the Release version.│

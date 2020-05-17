@@ -5,6 +5,11 @@
 * Added a backup to floppy utility which can be found in the '/ags' directory
 
 # Dialing Program
+### 0.6.1:
+* Adjusted Alteran signal decoding, again
+* Dial button becomes gray if gate is busy
+* Hopefully stopped the Ori Priors from meddling with 'Orion'
+* Adjust some timing to accommodate AUNIS 1.9.8
 ### 0.6.0:
 * Images of the dialed glyph will now show on screen when dialing
 * Adjusted the phase of Alteran signal decoding, to improve duplex communication

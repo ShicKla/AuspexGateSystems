@@ -54,13 +54,13 @@ function initialization()
   end
   UsersWorkingDir = shell.getWorkingDirectory()
   shell.setWorkingDirectory("/ags/")
-  if SelfFileName ~= "/ags/AuspexGateSystems.lua" then
-    print("The Auspex Gate Systems Launcher is running from")
-    print("the wrong directory")
-    print("Please use the 'ags' system command to run the")
-    print("launcher.")
-    forceExit(true)
-  end
+--  if SelfFileName ~= "/ags/AuspexGateSystems.lua" then
+--    print("The Auspex Gate Systems Launcher is running from")
+--    print("the wrong directory")
+--    print("Please use the 'ags' system command to run the")
+--    print("launcher.")
+--    forceExit(true)
+--  end
   if not filesystem.exists("/ags/gateEntries.ff") or filesystem.size("/ags/gateEntries.ff") == 0 then
     if filesystem.exists(UsersWorkingDir.."/gateEntries.ff") then
       print("Found a Gate Entries database file at")

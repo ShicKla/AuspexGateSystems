@@ -1,8 +1,10 @@
 {
     dialer={
-        ver = "0.6.1",
+        ver = "0.6.2",
         file = "SG_Dialer.lua",
-        note = {"0.6.1:",
+        note = {"0.6.2:",
+                " Hotfix to support dialing with Pegasus Gates. Currently no Glyphs will display",
+                "0.6.1:",
                 " Adjusted Alteran signal decoding, again",
                 " Dial button becomes gray if gate is busy",
                 " Hopefully stopped the Ori Priors from meddling with 'Orion'",

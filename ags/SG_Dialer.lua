@@ -1,6 +1,6 @@
 --[[
 Created By: Augur ShicKla
-v0.6.1
+v0.6.2
 
 System Requirements:
 Tier 3.5 Memory
@@ -8,7 +8,7 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
-Version = "0.6.1"
+Version = "0.6.2"
 component = require("component")
 computer = require("computer")
 event = require("event")
@@ -49,7 +49,9 @@ end
 sg = component.stargate
 
 GlyphsMW = {"Andromeda","Aquarius","Aries","Auriga","Bootes","Cancer","Canis Minor","Capricornus","Centaurus","Cetus","Corona Australis","Crater","Equuleus","Eridanus","Gemini","Hydra","Leo","Leo Minor","Libra","Lynx","Microscopium","Monoceros","Norma","Orion","Pegasus","Perseus","Pisces","Piscis Austrinus","Sagittarius","Scorpius","Sculptor","Scutum","Serpens Caput","Sextans","Taurus","Triangulum","Virgo"}
-GlyphsPG = {"Aaxel","Abrin","Acjesis","Aldeni","Alura","Amiwill","Arami","Avoniv","Baselai","Bydo","Ca Po","Danami","Dawnre","Ecrumig","Elenami","Gilltin","Hacemill","Hamlinto","Illume","Laylox","Lenchan","Olavii","Once El","Poco Re","Ramnon","Recktic","Robandus","Roehi","Salma","Sandovi","Setas","Sibbron","Subido","Tahnan","Zamilloz","Zeo"}
+GlyphsPG = {"Aaxel","Abrin","Acjesis","Aldeni","Alura","Amiwill","Arami","Avoniv","Baselai","Bydo","Ca Po","Danami","Dawnre","Ecrumig","Elenami","Gilltin","Hacemill","Hamlinto","Illume","Laylox","Lenchan","Olavii","Once El","Poco Re","Ramnon","Recktic","Robandus","Roehi","Salma","Sandovi","Setas","Sibbron","Tahnan","Zamilloz","Zeo"}
+-- GlyphsPG = {"Aaxel","Abrin","Acjesis","Aldeni","Alura","Amiwill","Arami","Avoniv","Baselai","Bydo","Ca Po","Danami","Dawnre","Ecrumig","Elenami","Gilltin","Hacemill","Hamlinto","Illume","Laylox","Lenchan","Olavii","Once El","Poco Re","Ramnon","Recktic","Robandus","Roehi","Salma","Sandovi","Setas","Sibbron","Subido","Tahnan","Zamilloz","Zeo"}
+
 
 GateType = ""
 GateTypeName = ""
@@ -807,6 +809,8 @@ function dialAddress(gateEntry, num)
     table.insert(AddressBuffer,"Point of Origin")
   elseif GateType == "UN" then
     table.insert(AddressBuffer,"Glyph 17")
+  elseif GateType == "PG" then
+    table.insert(AddressBuffer,"Subido")
   end  
   clearDisplay()
   HelpButton:disable(true)
@@ -1199,6 +1203,16 @@ function gateRingDisplay.initialize()
     self.onColor = 0x994900
     self.ringColor = 0x4B4B4B
     self.horizonColor = 0x006DFF
+  elseif GateType == "UN" then
+    self.offColor = 0xA5A5A5
+    self.onColor = 0xFFFFFF
+    self.ringColor = 0x1E1E1E
+    self.horizonColor = 0x787878
+  elseif GateType == "PG" then
+    self.offColor = 0x4B4B4B
+    self.onColor = 0x0092FF
+    self.ringColor = 0x696969
+    self.horizonColor = 0x006DFF
   else
     self.offColor = 0xA5A5A5
     self.onColor = 0xFFFFFF
@@ -1234,6 +1248,8 @@ function gateRingDisplay.glyphImage(glyphName, isEngaged)
     xPos = 77
     yPos = 14
     gpu.fill(xPos, yPos, 6, 18, " ")
+  elseif GateType == "PG" then
+    return
   end
   if glyphName == nil and isEngaged == nil then return end
   if isEngaged then

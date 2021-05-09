@@ -1,9 +1,9 @@
 {
     dialer={
-        ver = "0.6.2",
+        ver = "0.6.3",
         file = "SG_Dialer.lua",
-        note = {"0.6.2:",
-                " Hotfix to support dialing with Pegasus Gates. Currently no Glyphs will display",
+        note = {"0.6.3:",
+                " Added support for Pegasus Stargates",
                 "0.6.1:",
                 " Adjusted Alteran signal decoding, again",
                 " Dial button becomes gray if gate is busy",
@@ -15,7 +15,8 @@
         manifest = {"/ags/SG_Dialer.lua",
                     "/ags/gateRing.ff",
                     "/ags/glyphsMW.ff",
-                    "/ags/glyphsUN.ff"}
+                    "/ags/glyphsUN.ff",
+                    "/ags/glyphsPG.ff"}
     },
     launcher={
         ver = "1.1.5",

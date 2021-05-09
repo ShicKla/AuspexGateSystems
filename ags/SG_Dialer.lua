@@ -1193,6 +1193,8 @@ function gateRingDisplay.initialize()
     dofile("glyphsMW.ff") -- Loads MW Glyph Images
   elseif GateType == "UN" then
     dofile("glyphsUN.ff") -- Loads UN Glyph Images
+  elseif GateType == "PG" then
+    dofile("glyphsPG.ff") -- Loads UN Glyph Images
   end
   self.ringTbl, self.topTbl, self.midTbl, self.botTbl = {},{},{},{}
   self.chevTbl = {"⢤⣤⣤⣤⣤⡤","⠀⢻⣿⣿⡟","⠀⠀⢻⡟"}
@@ -1240,7 +1242,7 @@ function gateRingDisplay.glyphImage(glyphName, isEngaged)
   local self = gateRingDisplay
   local xPos = 0
   local yPos = 0
-  if GateType == "MW" then
+  if GateType == "MW" or GateType == "PG" then
     xPos = 64
     yPos = 15
     gpu.fill(xPos, yPos, 32, 16, " ")
@@ -1248,8 +1250,8 @@ function gateRingDisplay.glyphImage(glyphName, isEngaged)
     xPos = 77
     yPos = 14
     gpu.fill(xPos, yPos, 6, 18, " ")
-  elseif GateType == "PG" then
-    return
+  -- elseif GateType == "PG" then
+    -- return
   end
   if glyphName == nil and isEngaged == nil then return end
   if isEngaged then
@@ -1471,7 +1473,13 @@ function gateRingDisplay.dialedChevrons(count, hideImage)
   if count <= self.engagedChevronCount then return end
   -- computer.beep() -- For debug
   local glyphName = DialedAddress[count]
-  if glyphName == "" then glyphName = "Point of Origin" end
+  if glyphName == "" then 
+    if GateType == "MW" then
+      glyphName = "Point of Origin"
+    elseif GateType == "PG" then
+      glyphName = "Subido"
+    end
+  end
   if not hideImage then self.glyphImage(glyphName, true) end
   if count < 7 then
     self.setChevron(count, true)

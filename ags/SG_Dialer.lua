@@ -1,6 +1,6 @@
 --[[
 Created By: Augur ShicKla
-v0.6.2
+v0.6.4
 
 System Requirements:
 Tier 3.5 Memory
@@ -8,7 +8,7 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
-Version = "0.6.2"
+Version = "0.6.4"
 component = require("component")
 computer = require("computer")
 event = require("event")
@@ -58,6 +58,7 @@ GateTypeName = ""
 ConnectionErrorString = "Communication error with Stargate. Please disconnect and reconnect.\nIf problem persists verify AUNIS 1.9.6 or greater is installed, and replace Stargate base block."
 DatabaseFile = "gateEntries.ff"
 gateEntries = {}
+historyEntries = {}
 AddressBuffer = {}
 keyCombo = {}
 ActiveButtons = {}
@@ -81,6 +82,7 @@ DebugEventName = ""
 UNGateResetting = false
 RootDrive = nil
 DialedAddress = {}
+IncomingWormhole = false
 GateStatusString, GateStatusBool = nil
 -- End of Declarations -------------------------------------------------------------
 
@@ -360,6 +362,23 @@ function userInput(x, y, maxLength)
   return inputString
 end
 
+function updateHistory()
+  alert("History Updated", 1) -- For Debug
+  local adrName = "PXX-XXX"
+  local address = {}
+  for i,v in ipairs(DialedAddress) do
+    if i < #DialedAddress then
+      table.insert(address, v)
+    end
+  end
+  local inDatabase, duplicateNames = entriesDuplicateCheck(address, gateEntries, GateType, 1)
+  if inDatabase then
+    adrName = duplicateNames[1]
+  end
+  table.insert(historyEntries, 1, {name=adrName, gateAddress={[GateType]=address}})
+  if GateEntriesWindow.mode == "history" then GateEntriesWindow.update() end
+end
+
 function errorHandler(err)
   
 end
@@ -466,7 +485,8 @@ function GateEntriesWindow.set()
   elseif GateType == "UN" then self.localAddress = localUNAddress
   elseif GateType == "PG" then self.localAddress = localPGAddress
   end
-  gpu.set(1, 2,  "╔╡Gate Entries╞═══════════════════════╗")
+  self.mode = "database"
+  gpu.set(1, 2,  "╔╡Gate Entries╞══════════════╡History╞╗")
   gpu.set(1, 40, "╚═════════════════════════════════════╝")
   gpu.fill(1, 3, 1, 37, "║")
   gpu.fill(39, 3, 1, 37, "║")
@@ -493,18 +513,37 @@ end
 function GateEntriesWindow.update()
   local self = GateEntriesWindow
   local strBuf = ""
+  local dialable = true
   self.entryStrings = {}
-  for i,v in ipairs(gateEntries) do
+  self.canDial = {}
+  gpu.setBackground(0x878787)
+  if self.mode == "database" then
+    gpu.set(3, 2,  "Gate Entries")
+    gpu.setBackground(0x000000)
+    gpu.set(31, 2,  "History")
+    self.loadedEntries = gateEntries
+  elseif self.mode == "history" then
+    gpu.set(31, 2,  "History")
+    gpu.setBackground(0x000000)
+    gpu.set(3, 2,  "Gate Entries")
+    self.loadedEntries = historyEntries
+  end
+  -- for i,v in ipairs(gateEntries) do
+  for i,v in ipairs(self.loadedEntries) do
     strBuf = v.name
     if entriesDuplicateCheck(self.localAddress, {v}, GateType, 1) then
       strBuf = strBuf.." [This Stargate]"
+      dialable = false
     elseif v.gateAddress[GateType] ~= nil and #v.gateAddress[GateType] ~= 0 then
       strBuf = strBuf.." ("..(#v.gateAddress[GateType]+1).." Glyphs)"
+      dialable = true
     else
       strBuf = strBuf.." [Empty "..GateType.." Address]"
+      dialable = false
     end
-    if unicode.len(strBuf) > self.width-5 then strBuf = unicode.wtrunc(strBuf, self.width-6) end
+    if unicode.len(strBuf) > self.width-5 then strBuf = unicode.wtrunc(strBuf, self.width-6) end -- Truncate String to no go past border
     table.insert(self.entryStrings, strBuf)
+    table.insert(self.canDial, dialable)
   end
   if #self.entryStrings > self.range.height then
     gpu.set(1, 40, "╚═╡░░░░░░╞═══════════════════╡░░░░░░╞═╝")
@@ -519,8 +558,11 @@ function GateEntriesWindow.update()
 end
 
 function GateEntriesWindow.display()
-  if #gateEntries == 0 then alert("WARNING: NO ADDRESSES IN DATABASE!", 2) end
   local self = GateEntriesWindow
+  if #gateEntries == 0 then alert("WARNING: NO ADDRESSES IN DATABASE!", 2) end
+  if self.mode == "history" then
+    if #self.loadedEntries == 0 then alert("DIAL HISTORY IS EMPTY", 2) end
+  end
   gpu.fill(2, 3, 37, 37, " ")
   self.currentIndices = {}
   local displayCount = 0
@@ -528,9 +570,12 @@ function GateEntriesWindow.display()
     if i >= self.range.bot and i <= self.range.top then
       displayCount = displayCount + 1
       self.currentIndices[displayCount] = i
-      gpu.set(3, 2+displayCount, tostring(i))
+      -- gpu.set(3, 2+displayCount, tostring(i)) -- Display Number
       if i == self.selectedIndex then gpu.setBackground(0x878787) end
-      gpu.set(7, 2+displayCount, v)
+      -- gpu.set(7, 2+displayCount, v) -- Old Postion
+      if self.canDial[i] == false then gpu.setForeground(0xB4B4B4) end
+      gpu.set(3, 2+displayCount, v)
+      gpu.setForeground(0xFFFFFF)
       gpu.setBackground(0x000000)
     end
   end
@@ -546,7 +591,24 @@ function GateEntriesWindow.touch(x, y)
       self.selectedIndex = self.currentIndices[y - 2]
       if self.selectedIndex == nil then self.selectedIndex = 0 end
       self.display()
+      updateDialButton()
+      if self.mode == "database" then
+        glyphListWindow.insertAddress(gateEntries[GateEntriesWindow.selectedIndex].gateAddress[GateType])
+      else
+        glyphListWindow.insertAddress(historyEntries[GateEntriesWindow.selectedIndex].gateAddress[GateType])
+      end
     end
+  elseif ((x >= 3 and x <= 13) or (x >= 31 and x <= 37)) and y == 2 then
+    if x >= 3 and x <= 13 then
+      self.mode = "database"
+      buttons.editButton:disable(false)
+    elseif x >= 31 and x <= 37 then
+      self.mode = "history"
+      buttons.editButton:disable(true)
+    end
+    self.selectedIndex = 0
+    updateDialButton()
+    self.update()
   end
 end
 -- End of Gate Entries Window ------------------------------------------------------
@@ -624,6 +686,7 @@ function glyphListWindow.display()
     end
     gpu.setForeground(0xFFFFFF)
   else
+    resetButton:hide()
     gpu.setForeground(0x0F0F0F)
   end
   gpu.set(xOffset, yOffset+2, "┌")
@@ -703,6 +766,22 @@ function glyphListWindow.insertGlyph(glyph)
   glyphListWindow.display()
 end
 
+function glyphListWindow.insertAddress(address)
+  glyphListWindow.selectedGlyphs = {}
+  if #address > 0 then
+    for i,glyph in ipairs(address) do
+      if GateType == "UN" and glyph:sub(1, 5) ~= "Glyph" then
+        glyph = string.gsub(glyph, "G", "Glyph ")
+      end
+      for i2,v2 in ipairs(glyphListWindow.glyphs) do
+        if glyph == v2 then table.insert(glyphListWindow.selectedGlyphs, i2) end
+      end
+      if glyph == "Glyph 17" or glyph == "Point of Origin" or glyph == "Subido" then table.insert(glyphListWindow.selectedGlyphs, -1) end
+    end
+  end
+  glyphListWindow.display()
+end
+
 function glyphListWindow.showAddress()
   if #DialedAddress ~= #glyphListWindow.selectedGlyphs then
     glyphListWindow.selectedGlyphs = {}
@@ -717,6 +796,9 @@ function glyphListWindow.reset()
   self.selectedGlyphs = {}
   buttons.glyphResetButton:hide()
   self.display()
+  GateEntriesWindow.selectedIndex = 0
+  GateEntriesWindow.display()
+  updateDialButton()
 end
 -- End of Glyph List Window -------------------------------------------------------------
 
@@ -816,6 +898,7 @@ function dialAddress(gateEntry, num)
   HelpButton:disable(true)
   gateRingDisplay.draw()
   glyphListWindow.reset()
+  buttons.abortDialingButton:disable(false)
   buttons.abortDialingButton:display()
   ComputerDialingInterlocked = true
   AbortingDialing = false
@@ -847,6 +930,7 @@ function dialNext(dialed)
       gateRingDisplay.traces(dialed+1, 1)
     elseif (dialed+1) == #AddressBuffer then
       gateRingDisplay.traces(7, 1)
+      buttons.abortDialingButton:disable(true)
     else
       gateRingDisplay.traces(dialed+2, 1)
     end
@@ -856,6 +940,7 @@ function dialNext(dialed)
 end
 
 function abortDialing()
+  buttons.abortDialingButton:disable(true)
   AbortingDialing = true
   alert("ABORTING DIALING... PLEASE WAIT", 2)
   while sg.getGateStatus() ~= "idle" do os.sleep() end
@@ -946,6 +1031,7 @@ function completeAddressEntry(adrType)
       clearDisplay()
       buttons.cancelButton:display()
       gpu.set(42, 6, "Please enter a name for the address: ")
+      -- INSERT PAUSE HERE?
       givenInput = userInput(79, 6, 21)
       if givenInput == "" then
         addressName = "Unknown"
@@ -1250,10 +1336,9 @@ function gateRingDisplay.glyphImage(glyphName, isEngaged)
     xPos = 77
     yPos = 14
     gpu.fill(xPos, yPos, 6, 18, " ")
-  -- elseif GateType == "PG" then
-    -- return
   end
   if glyphName == nil and isEngaged == nil then return end
+  if IncomingWormhole then return end
   if isEngaged then
     gpu.setForeground(self.onColor)
   else
@@ -1468,6 +1553,7 @@ function gateRingDisplay.setChevron(num, isEngaged)
 end
 
 function gateRingDisplay.dialedChevrons(count, hideImage)
+  -- if IncomingWormhole then return end
   local self = gateRingDisplay
   if count == 0 then engagedChevronCount = 0 end
   if count <= self.engagedChevronCount then return end
@@ -1537,10 +1623,20 @@ local EventListeners = {
   end),
   
   stargate_incoming_wormhole = event.listen("stargate_incoming_wormhole", function(_, _, caller, dialedAddressSize)
-    alert("INCOMING WORMHOLE", 2)
-    for i=1,dialedAddressSize do gateRingDisplay.chevronStates[i] = true end
-    if gateRingDisplay.isActive then
-      for i,v in ipairs(gateRingDisplay.chevronStates) do gateRingDisplay.setChevron(i, v) end
+    AddressBuffer = {}
+    if IncomingWormhole == false then
+      IncomingWormhole = true
+      AbortingDialing = true
+      alert("INCOMING WORMHOLE", 2)
+      if gateRingDisplay.isActive then
+        gateRingDisplay.glyphImage()
+        gateRingDisplay.reset()
+        for i=1,dialedAddressSize do gateRingDisplay.chevronStates[i] = true end
+        for i,v in ipairs(gateRingDisplay.chevronStates) do gateRingDisplay.setChevron(i, v) end
+      end
+      updateDialButton()
+      os.sleep(3)
+      IncomingWormhole = false
     end
   end),
 
@@ -1552,6 +1648,9 @@ local EventListeners = {
     glyphListWindow.display()
     os.sleep(2)
     gateRingDisplay.eventHorizon(true)
+    if isInitiating then
+      updateHistory()
+    end
   end),
 
   stargate_close = event.listen("stargate_close", function(_, _, caller, reason)
@@ -1573,6 +1672,7 @@ local EventListeners = {
       gateRingDisplay.UNreset()
       UNGateResetting = false
     end
+    updateDialButton()
   end),
 
   stargate_failed = event.listen("stargate_failed", function(_, _, caller, reason)
@@ -1665,7 +1765,11 @@ local EventListeners = {
 -- Buttons -------------------------------------------------------------------------
 buttons = {
   dialButton = Button.new(41, 2, 0, 3, "  Dial  ", function()
-    dialAddress(gateEntries[GateEntriesWindow.selectedIndex])
+    if GateEntriesWindow.mode == "database" then
+      dialAddress(gateEntries[GateEntriesWindow.selectedIndex])
+    elseif GateEntriesWindow.mode == "history" then
+      dialAddress(historyEntries[GateEntriesWindow.selectedIndex])
+    end
   end),
   editButton = Button.new(64, 2, 0, 3, "Edit Entry", function()
       editGateEntry(GateEntriesWindow.selectedIndex)
@@ -1743,6 +1847,14 @@ end)
 HelpButton = Button.new(8, 41, 0, 0, "Help", function()
   HelpWindow.toggle()
 end)
+
+function updateDialButton()
+  if GateEntriesWindow.canDial[GateEntriesWindow.selectedIndex] == true and GateStatusString == "idle" then
+    buttons.dialButton:disable(false)
+  else
+    buttons.dialButton:disable(true)
+  end 
+end
 -- End of Buttons ------------------------------------------------------------------
 
 -- Help Window ---------------------------------------------------------------------
@@ -1848,17 +1960,17 @@ ChildThread = {
         elseif not CloseGateButton.disabled then
           CloseGateButton:disable(true)
         end
-        if GateStatusString ~= "idle" then
-          buttons.dialButton:disable(true)
-        elseif buttons.dialButton.disabled then
-          buttons.dialButton:disable(false)
-        end
+        -- if GateStatusString ~= "idle" or GateEntriesWindow.selectedIndex == 0 or GateEntriesWindow.selectedIndex == nil or GateEntriesWindow.canDial[GateEntriesWindow.selectedIndex] == false then
+          -- buttons.dialButton:disable(true)
+        -- elseif buttons.dialButton.disabled then
+          -- buttons.dialButton:disable(false)
+        -- end
         if GateStatusString == "dialing" and not UNGateResetting and not DialingInterlocked then
           DialingInterlocked = true
           if sg.dialedAddress == "[]" then glyphListWindow.reset() end
         end
         if DialingInterlocked or ComputerDialingInterlocked then
-          if not UNGateResetting then
+          if not UNGateResetting and not IncomingWormhole then
             DialedAddress = parseAddressString(sg.dialedAddress, GateType)
             gateRingDisplay.dialedChevrons(#DialedAddress)
             if buttons.glyphResetButton.visible then buttons.glyphResetButton:hide() end
@@ -1914,6 +2026,7 @@ function mainInterface(shouldClear)
   if glyphListWindow.glyphType ~= GateType then glyphListWindow.initialize(GateType) end
   glyphListWindow.display()
   buttons.dialButton:display()
+  updateDialButton()
   buttons.editButton:display()
   buttons.addEntryButton:display()
   if HelpButton.disabled then HelpButton:disable(false) end

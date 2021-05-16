@@ -9,9 +9,9 @@ Tier 3 Screen
 ]]--
 
 Version = "0.6.4"
-component = require("component")
-computer = require("computer")
-event = require("event")
+local component = require("component")
+local computer = require("computer")
+local event = require("event")
 os = require("os")
 term = require("term")
 thread = require("thread")
@@ -223,8 +223,18 @@ function GateEntry(ge)
   table.insert(gateEntries, ge)
 end
 
+function HistoryEntry(ge)
+  if ge.gateAddress.UN ~= nil and #ge.gateAddress.UN ~= 0 then
+    for i,v in ipairs(ge.gateAddress.UN) do
+      _,ge.gateAddress.UN[i] = checkGlyph(v, "UN")
+    end
+  end
+  table.insert(historyEntries, ge)
+end
+
 function readAddressFile()
   gateEntries = {}
+  historyEntries = {}
   local file = io.open(DatabaseFile, "r")
   if file == nil then
     file = io.open(DatabaseFile, "w")
@@ -237,6 +247,10 @@ function writeToDatabase()
   local file, msg = io.open(DatabaseFile, "w")
   for i,v in ipairs(gateEntries) do
     file:write("GateEntry"..serialization.serialize(v).."\n")
+  end
+  file:write("\n")
+  for i,v in ipairs(historyEntries) do
+    file:write("HistoryEntry"..serialization.serialize(v).."\n")
   end
   file:close()
   readAddressFile()
@@ -256,7 +270,8 @@ end
 function clearDisplay()
   for k in pairs(buttons) do buttons[k]:hide() end
   gateRingDisplay.isActive = false
-  gpu.fill(41, 2, 120-(2*glyphListWindow.width), 42, " ")
+  gpu.fill(41, 2, 120-(2*glyphListWindow.width), 39, " ")
+  gpu.fill(43, 2, 120-(2*glyphListWindow.width), 42, " ")
 end
 
 function checkGlyph(glyph, adrType)
@@ -337,8 +352,8 @@ function userInput(x, y, maxLength)
   term.setCursorBlink(true)
   while true do
     term.setCursorBlink(true)
-    local event, address, arg1, arg2, arg3 = term.pull()
-    if event == "key_down" then
+    local e, address, arg1, arg2, arg3 = term.pull()
+    if e == "key_down" then
       if arg2 ~= 28 and arg2 ~= 14 and arg1 ~= 0 and strLength < maxLength then -- Not Enter, Backspace, or Other
         inputString = inputString..unicode.char(arg1)
       elseif arg2 == 14 then -- Backspace Key
@@ -363,9 +378,9 @@ function userInput(x, y, maxLength)
 end
 
 function updateHistory()
-  alert("History Updated", 1) -- For Debug
-  local adrName = "PXX-XXX"
+  local adrName = "UNKNOWN"
   local address = {}
+  local timeString = os.date("%H:%M %d/%m", getRealTime())..""
   for i,v in ipairs(DialedAddress) do
     if i < #DialedAddress then
       table.insert(address, v)
@@ -375,13 +390,20 @@ function updateHistory()
   if inDatabase then
     adrName = duplicateNames[1]
   end
-  table.insert(historyEntries, 1, {name=adrName, gateAddress={[GateType]=address}})
-  if GateEntriesWindow.mode == "history" then GateEntriesWindow.update() end
+  table.insert(historyEntries, 1, {name=adrName, gateAddress={[GateType]=address}, t=getRealTime()})
+  while #historyEntries > 50 do
+    table.remove(historyEntries)
+  end
+  writeToDatabase()
 end
 
-function errorHandler(err)
-  
+function getRealTime()
+  local tmpFile = io.open("/tmp/.time", "w")
+  tmpFile:write()
+  tmpFile:close()
+  return math.floor(filesystem.lastModified("/tmp/.time") / 1000)
 end
+
 -- End of Special Functions --------------------------------------------------------
 
 -- Info Center ---------------------------------------------------------------------
@@ -480,6 +502,9 @@ function GateEntriesWindow.set()
   self.range.bot = 1
   self.range.height = 37
   self.range.top = self.range.height
+  self.range.botH = 1
+  self.range.topH = self.range.height
+  self.isRedrawing = false
   self.locked = false
   if GateType == "MW" then self.localAddress = localMWAddress
   elseif GateType == "UN" then self.localAddress = localUNAddress
@@ -501,12 +526,22 @@ end
 
 function GateEntriesWindow.increment(inc)
   local self = GateEntriesWindow
-  if (self.range.top + inc) > #gateEntries or (self.range.bot + inc) < 1 then
-    return
-  else
-    self.range.bot = self.range.bot + inc
-    self.range.top = self.range.top + inc
-    self.display()
+  if self.mode == "database" then
+    if (self.range.top + inc) > #gateEntries or (self.range.bot + inc) < 1 then
+      return
+    else
+      self.range.bot = self.range.bot + inc
+      self.range.top = self.range.top + inc
+      self.display()
+    end
+  elseif self.mode == "history" then
+    if (self.range.topH + inc) > #historyEntries or (self.range.botH + inc) < 1 then
+      return
+    else
+      self.range.botH = self.range.botH + inc
+      self.range.topH = self.range.topH + inc
+      self.display()
+    end
   end
 end
 
@@ -522,26 +557,36 @@ function GateEntriesWindow.update()
     gpu.setBackground(0x000000)
     gpu.set(31, 2,  "History")
     self.loadedEntries = gateEntries
+    ClearHistoryButton:hide()
   elseif self.mode == "history" then
     gpu.set(31, 2,  "History")
     gpu.setBackground(0x000000)
     gpu.set(3, 2,  "Gate Entries")
     self.loadedEntries = historyEntries
+    if #historyEntries > 0 then ClearHistoryButton:display() end
   end
   -- for i,v in ipairs(gateEntries) do
   for i,v in ipairs(self.loadedEntries) do
     strBuf = v.name
-    if entriesDuplicateCheck(self.localAddress, {v}, GateType, 1) then
-      strBuf = strBuf.." [This Stargate]"
-      dialable = false
-    elseif v.gateAddress[GateType] ~= nil and #v.gateAddress[GateType] ~= 0 then
-      strBuf = strBuf.." ("..(#v.gateAddress[GateType]+1).." Glyphs)"
-      dialable = true
-    else
-      strBuf = strBuf.." [Empty "..GateType.." Address]"
-      dialable = false
+    if self.mode == "database" then
+      if entriesDuplicateCheck(self.localAddress, {v}, GateType, 1) then
+        strBuf = strBuf.." [This Stargate]"
+        dialable = false
+      elseif v.gateAddress[GateType] ~= nil and #v.gateAddress[GateType] ~= 0 then
+        strBuf = strBuf.." ("..(#v.gateAddress[GateType]+1).." Glyphs)"
+        dialable = true
+      else
+        strBuf = strBuf.." [Empty "..GateType.." Address]"
+        dialable = false
+      end
     end
-    if unicode.len(strBuf) > self.width-5 then strBuf = unicode.wtrunc(strBuf, self.width-6) end -- Truncate String to no go past border
+    if unicode.len(strBuf) > self.width-11 then strBuf = unicode.wtrunc(strBuf, self.width-12) end -- Truncate String to not go past border
+    if self.mode == "history" and v.t ~= nil then
+      while string.len(strBuf) < 23 do
+        strBuf = strBuf.." "
+      end
+      strBuf = strBuf.." "..os.date("%d/%m %H:%M", v.t)
+    end
     table.insert(self.entryStrings, strBuf)
     table.insert(self.canDial, dialable)
   end
@@ -559,15 +604,25 @@ end
 
 function GateEntriesWindow.display()
   local self = GateEntriesWindow
+  self.isRedrawing = true
   if #gateEntries == 0 then alert("WARNING: NO ADDRESSES IN DATABASE!", 2) end
-  if self.mode == "history" then
-    if #self.loadedEntries == 0 then alert("DIAL HISTORY IS EMPTY", 2) end
-  end
+  -- if self.mode == "history" then
+    -- if #self.loadedEntries == 0 then alert("DIAL HISTORY IS EMPTY", 2) end
+  -- end
   gpu.fill(2, 3, 37, 37, " ")
   self.currentIndices = {}
   local displayCount = 0
+  local top
+  local bot
+  if self.mode == "database" then
+    top = self.range.top
+    bot = self.range.bot
+  elseif self.mode == "history" then
+    top = self.range.topH
+    bot = self.range.botH
+  end
   for i,v in ipairs(self.entryStrings) do
-    if i >= self.range.bot and i <= self.range.top then
+    if i >= bot and i <= top then
       displayCount = displayCount + 1
       self.currentIndices[displayCount] = i
       -- gpu.set(3, 2+displayCount, tostring(i)) -- Display Number
@@ -579,7 +634,7 @@ function GateEntriesWindow.display()
       gpu.setBackground(0x000000)
     end
   end
-  
+  self.isRedrawing = false
   -- gpu.fill(1, 42, 23, 1, "░") -- For Debug
   -- gpu.set(1, 42, tostring(gateEntries[self.selectedIndex])) -- For Debug
 end
@@ -591,7 +646,7 @@ function GateEntriesWindow.touch(x, y)
       self.selectedIndex = self.currentIndices[y - 2]
       if self.selectedIndex == nil then self.selectedIndex = 0 end
       self.display()
-      updateDialButton()
+      updateButtons()
       if self.mode == "database" then
         glyphListWindow.insertAddress(gateEntries[GateEntriesWindow.selectedIndex].gateAddress[GateType])
       else
@@ -601,13 +656,11 @@ function GateEntriesWindow.touch(x, y)
   elseif ((x >= 3 and x <= 13) or (x >= 31 and x <= 37)) and y == 2 then
     if x >= 3 and x <= 13 then
       self.mode = "database"
-      buttons.editButton:disable(false)
     elseif x >= 31 and x <= 37 then
       self.mode = "history"
-      buttons.editButton:disable(true)
     end
     self.selectedIndex = 0
-    updateDialButton()
+    updateButtons()
     self.update()
   end
 end
@@ -798,7 +851,7 @@ function glyphListWindow.reset()
   self.display()
   GateEntriesWindow.selectedIndex = 0
   GateEntriesWindow.display()
-  updateDialButton()
+  updateButtons()
 end
 -- End of Glyph List Window -------------------------------------------------------------
 
@@ -1634,7 +1687,7 @@ local EventListeners = {
         for i=1,dialedAddressSize do gateRingDisplay.chevronStates[i] = true end
         for i,v in ipairs(gateRingDisplay.chevronStates) do gateRingDisplay.setChevron(i, v) end
       end
-      updateDialButton()
+      updateButtons()
       os.sleep(3)
       IncomingWormhole = false
     end
@@ -1672,7 +1725,7 @@ local EventListeners = {
       gateRingDisplay.UNreset()
       UNGateResetting = false
     end
-    updateDialButton()
+    updateButtons()
   end),
 
   stargate_failed = event.listen("stargate_failed", function(_, _, caller, reason)
@@ -1745,7 +1798,9 @@ local EventListeners = {
   end),
 
   scroll = event.listen("scroll", function(_, screenAddress, x, y, direction, playerName)
-      GateEntriesWindow.increment(direction*-1)
+      for _,v in pairs(ChildThread) do v:suspend() end
+      if not GateEntriesWindow.isRedrawing then GateEntriesWindow.increment(direction*-1) end
+      for _,v in pairs(ChildThread) do v:resume() end
   end),
 
   component_unavailable = event.listen("component_unavailable", function(_, componentString)
@@ -1836,6 +1891,9 @@ buttons = {
 QuitButton = Button.new(1, 41, 0, 3, "Quit", function()
   MainLoop = false
 end)
+HelpButton = Button.new(8, 41, 0, 0, "Help", function()
+  HelpWindow.toggle()
+end)
 CloseGateButton = Button.new(15, 41, 0, 3, "Close Gate", function()
   local s,f = sg.disengageGate()
   if f == "stargate_failure_wrong_end" then
@@ -1844,16 +1902,24 @@ CloseGateButton = Button.new(15, 41, 0, 3, "Close Gate", function()
     alert("GATE IS NOT OPEN", 1)
   end
 end)
-HelpButton = Button.new(8, 41, 0, 0, "Help", function()
-  HelpWindow.toggle()
+ClearHistoryButton = Button.new(28, 41, 0, 0, "Clear History", function()
+  historyEntries = {}
+  writeToDatabase()
+  ClearHistoryButton:hide()
 end)
 
-function updateDialButton()
+
+function updateButtons()
   if GateEntriesWindow.canDial[GateEntriesWindow.selectedIndex] == true and GateStatusString == "idle" then
     buttons.dialButton:disable(false)
   else
     buttons.dialButton:disable(true)
-  end 
+  end
+  if GateEntriesWindow.mode == "database" then
+    buttons.editButton:disable(false)
+  elseif GateEntriesWindow.mode == "history" then
+    buttons.editButton:disable(true)
+  end
 end
 -- End of Buttons ------------------------------------------------------------------
 
@@ -2016,6 +2082,13 @@ ChildThread = {
     end, debug.traceback)
   end)
 }
+
+local EventThread = thread.create(function()
+  -- local e
+  -- while HadNoError do
+    -- e = {event.pull()}
+  -- end
+end)
 -- End of Thread Creation ----------------------------------------------------------
 
 function mainInterface(shouldClear)
@@ -2026,9 +2099,9 @@ function mainInterface(shouldClear)
   if glyphListWindow.glyphType ~= GateType then glyphListWindow.initialize(GateType) end
   glyphListWindow.display()
   buttons.dialButton:display()
-  updateDialButton()
   buttons.editButton:display()
   buttons.addEntryButton:display()
+  updateButtons()
   if HelpButton.disabled then HelpButton:disable(false) end
 end
 
@@ -2051,6 +2124,7 @@ while MainLoop and HadNoError do os.sleep(0.05) end
 
 -- Closing Procedures --------------------------------------------------------------
 term.clear()
+EventThread:kill()
 for k,v in pairs(ChildThread) do
   if (wasTerminated or not HadNoError) and v:status() == "dead" then
     print(k..": dead already")

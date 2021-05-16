@@ -78,12 +78,12 @@ ErrorMessage = ""
 OutgoingWormhole = false
 DialingInterlocked = false
 DebugMode = false
-DebugEventName = ""
 UNGateResetting = false
 RootDrive = nil
 DialedAddress = {}
 IncomingWormhole = false
 GateStatusString, GateStatusBool = nil
+local DatabaseWriteTimer = nil
 -- End of Declarations -------------------------------------------------------------
 
 -- Pre-Initialization --------------------------------------------------------------
@@ -220,6 +220,7 @@ function GateEntry(ge)
       _,ge.gateAddress.UN[i] = checkGlyph(v, "UN")
     end
   end
+  if ge.fave == nil then ge.fave = false end
   table.insert(gateEntries, ge)
 end
 
@@ -244,17 +245,25 @@ function readAddressFile()
 end
 
 function writeToDatabase()
-  local file, msg = io.open(DatabaseFile, "w")
-  for i,v in ipairs(gateEntries) do
-    file:write("GateEntry"..serialization.serialize(v).."\n")
+  if DatabaseWriteTimer ~= nil then
+    event.cancel(DatabaseWriteTimer)
+    DatabaseWriteTimer = nil
   end
-  file:write("\n")
-  for i,v in ipairs(historyEntries) do
-    file:write("HistoryEntry"..serialization.serialize(v).."\n")
-  end
-  file:close()
-  readAddressFile()
-  GateEntriesWindow.update()
+  DatabaseWriteTimer = event.timer(5, function()
+    -- alert("Database Saved", 1) -- For Debug
+    local file, msg = io.open(DatabaseFile, "w")
+    for i,v in ipairs(gateEntries) do
+      file:write("GateEntry"..serialization.serialize(v).."\n")
+    end
+    file:write("\n")
+    for i,v in ipairs(historyEntries) do
+      file:write("HistoryEntry"..serialization.serialize(v).."\n")
+    end
+    file:close()
+    readAddressFile()
+    DatabaseWriteTimer = nil
+  end)
+  GateEntriesWindow.update() 
 end
 
 function addressToString(tbl)
@@ -271,7 +280,7 @@ function clearDisplay()
   for k in pairs(buttons) do buttons[k]:hide() end
   gateRingDisplay.isActive = false
   gpu.fill(41, 2, 120-(2*glyphListWindow.width), 39, " ")
-  gpu.fill(43, 2, 120-(2*glyphListWindow.width), 42, " ")
+  gpu.fill(43, 2, 118-(2*glyphListWindow.width), 42, " ")
 end
 
 function checkGlyph(glyph, adrType)
@@ -394,6 +403,8 @@ function updateHistory()
   while #historyEntries > 50 do
     table.remove(historyEntries)
   end
+  GateEntriesWindow.range.botH = 1
+  GateEntriesWindow.range.topH = GateEntriesWindow.range.height
   writeToDatabase()
 end
 
@@ -504,7 +515,7 @@ function GateEntriesWindow.set()
   self.range.top = self.range.height
   self.range.botH = 1
   self.range.topH = self.range.height
-  self.isRedrawing = false
+  self.scrollingTimer = nil
   self.locked = false
   if GateType == "MW" then self.localAddress = localMWAddress
   elseif GateType == "UN" then self.localAddress = localUNAddress
@@ -515,10 +526,10 @@ function GateEntriesWindow.set()
   gpu.set(1, 40, "╚═════════════════════════════════════╝")
   gpu.fill(1, 3, 1, 37, "║")
   gpu.fill(39, 3, 1, 37, "║")
-  self.scrollUpButton = Button.new(3, 39, 0, 0, "▲PgUp▲", function()
+  self.scrollUpButton = Button.new(3, 39, 0, 0, "↑PgUp↑", function()
     GateEntriesWindow.increment(-1)
   end, false)
-  self.scrollDnButton = Button.new(30, 39, 0, 0, "▼PgDn▼", function()
+  self.scrollDnButton = Button.new(30, 39, 0, 0, "↓PgDn↓", function()
     GateEntriesWindow.increment(1)
   end, false)
   self.update()
@@ -526,21 +537,24 @@ end
 
 function GateEntriesWindow.increment(inc)
   local self = GateEntriesWindow
-  if self.mode == "database" then
-    if (self.range.top + inc) > #gateEntries or (self.range.bot + inc) < 1 then
-      return
-    else
-      self.range.bot = self.range.bot + inc
-      self.range.top = self.range.top + inc
-      self.display()
-    end
-  elseif self.mode == "history" then
-    if (self.range.topH + inc) > #historyEntries or (self.range.botH + inc) < 1 then
-      return
-    else
-      self.range.botH = self.range.botH + inc
-      self.range.topH = self.range.topH + inc
-      self.display()
+  if self.scrollingTimer == nil then
+    self.scrollingTimer = event.timer(0.05, function() self.scrollingTimer = nil end)
+    if self.mode == "database" then
+      if (self.range.top + inc) > #gateEntries or (self.range.bot + inc) < 1 then
+        return
+      else
+        self.range.bot = self.range.bot + inc
+        self.range.top = self.range.top + inc
+        self.display()
+      end
+    elseif self.mode == "history" then
+      if (self.range.topH + inc) > #historyEntries or (self.range.botH + inc) < 1 then
+        return
+      else
+        self.range.botH = self.range.botH + inc
+        self.range.topH = self.range.topH + inc
+        self.display()
+      end
     end
   end
 end
@@ -565,7 +579,6 @@ function GateEntriesWindow.update()
     self.loadedEntries = historyEntries
     if #historyEntries > 0 then ClearHistoryButton:display() end
   end
-  -- for i,v in ipairs(gateEntries) do
   for i,v in ipairs(self.loadedEntries) do
     strBuf = v.name
     if self.mode == "database" then
@@ -580,9 +593,19 @@ function GateEntriesWindow.update()
         dialable = false
       end
     end
-    if unicode.len(strBuf) > self.width-11 then strBuf = unicode.wtrunc(strBuf, self.width-12) end -- Truncate String to not go past border
+    if self.mode == "database" then
+      while unicode.len(strBuf) < self.width-8 do
+        strBuf = strBuf.." "
+      end
+    end
+    if unicode.len(strBuf) > self.width-6 then strBuf = unicode.wtrunc(strBuf, self.width-7) end -- Truncate String to not go past border
     if self.mode == "history" and v.t ~= nil then
-      while string.len(strBuf) < 23 do
+      if v.gateAddress[GateType] ~= nil and #v.gateAddress[GateType] > 0 then
+        dialable = true
+      else
+        dialable = false
+      end
+      while unicode.len(strBuf) < 23 do
         strBuf = strBuf.." "
       end
       strBuf = strBuf.." "..os.date("%d/%m %H:%M", v.t)
@@ -604,11 +627,7 @@ end
 
 function GateEntriesWindow.display()
   local self = GateEntriesWindow
-  self.isRedrawing = true
   if #gateEntries == 0 then alert("WARNING: NO ADDRESSES IN DATABASE!", 2) end
-  -- if self.mode == "history" then
-    -- if #self.loadedEntries == 0 then alert("DIAL HISTORY IS EMPTY", 2) end
-  -- end
   gpu.fill(2, 3, 37, 37, " ")
   self.currentIndices = {}
   local displayCount = 0
@@ -630,11 +649,41 @@ function GateEntriesWindow.display()
       -- gpu.set(7, 2+displayCount, v) -- Old Postion
       if self.canDial[i] == false then gpu.setForeground(0xB4B4B4) end
       gpu.set(3, 2+displayCount, v)
-      gpu.setForeground(0xFFFFFF)
       gpu.setBackground(0x000000)
+      if self.mode == "database" then
+        if gateEntries[i].fave ~= nil and gateEntries[i].fave == true then
+          gpu.setForeground(0xFFFF00)
+        else
+          gpu.setForeground(0xB4B4B4)
+        end
+        gpu.set(37, 2+displayCount, "*")
+        if i == 1 or gateEntries[i].fave ~= gateEntries[i-1].fave then
+          gpu.setForeground(0x0F0F0F)
+        else
+          gpu.setForeground(0xFFFFFF)
+        end
+        gpu.set(33, 2+displayCount, "⇧ ") -- Move Up Arrow
+        if i == #self.entryStrings or gateEntries[i].fave ~= gateEntries[i+1].fave then
+          gpu.setForeground(0x0F0F0F)
+        else
+          gpu.setForeground(0xFFFFFF)
+        end
+        gpu.set(35, 2+displayCount, "⇩ ") -- Move Down Arrow
+      end
+      gpu.setForeground(0xFFFFFF)
     end
   end
-  self.isRedrawing = false
+  if bot <= 1 then
+    self.scrollUpButton:disable(true)
+  else
+    self.scrollUpButton:disable(false)
+  end
+  if top >= #self.entryStrings then
+    self.scrollDnButton:disable(true)
+  else
+    self.scrollDnButton:disable(false)
+  end
+
   -- gpu.fill(1, 42, 23, 1, "░") -- For Debug
   -- gpu.set(1, 42, tostring(gateEntries[self.selectedIndex])) -- For Debug
 end
@@ -645,6 +694,9 @@ function GateEntriesWindow.touch(x, y)
     if not ComputerDialingInterlocked and not addAddressMode and not editGateEntryMode then
       self.selectedIndex = self.currentIndices[y - 2]
       if self.selectedIndex == nil then self.selectedIndex = 0 end
+      if (x == 33 or x== 35 or x == 37) and self.mode == "database" then
+        self.changePosition(x, y)
+      end
       self.display()
       updateButtons()
       if self.mode == "database" then
@@ -662,6 +714,57 @@ function GateEntriesWindow.touch(x, y)
     self.selectedIndex = 0
     updateButtons()
     self.update()
+  end
+end
+
+function GateEntriesWindow.changePosition(x, y)
+  local self = GateEntriesWindow
+  local wasInserted = false
+  if x == 33 then
+    if self.selectedIndex == 1 or gateEntries[self.selectedIndex].fave ~= gateEntries[self.selectedIndex-1].fave then
+      return
+    else
+      -- alert("Going Up", 1) -- For Debug
+      local entryBuf = table.remove(gateEntries, self.selectedIndex)
+      table.insert(gateEntries, self.selectedIndex-1, entryBuf)
+      self.selectedIndex = self.selectedIndex-1
+      wasInserted = true
+    end
+  elseif x == 35 then
+    if self.selectedIndex == #self.entryStrings or gateEntries[self.selectedIndex].fave ~= gateEntries[self.selectedIndex+1].fave then
+      return
+    else
+      -- alert("Going Down", 1) -- For Debug
+      gpu.set(x, y, "⇩") -- Move Down Arrow
+      local entryBuf = table.remove(gateEntries, self.selectedIndex)
+      table.insert(gateEntries, self.selectedIndex+1, entryBuf)
+      self.selectedIndex = self.selectedIndex+1
+      wasInserted = true
+    end  
+  elseif x == 37 then
+    local entryBuf = table.remove(gateEntries, self.selectedIndex)
+    if entryBuf.fave == nil or entryBuf.fave == false then
+      entryBuf.fave = true
+    else
+      entryBuf.fave = false
+    end
+    for i,v in ipairs(gateEntries) do
+      if v.fave == nil or v.fave == false then
+        table.insert(gateEntries, i, entryBuf)
+        self.selectedIndex = i
+        wasInserted = true
+        break
+      end
+    end
+    if not wasInserted then
+      table.insert(gateEntries, entryBuf)
+      self.selectedIndex = #gateEntries
+      wasInserted = true
+    end
+  end
+  if wasInserted then
+    self.update()
+    writeToDatabase()
   end
 end
 -- End of Gate Entries Window ------------------------------------------------------
@@ -1119,7 +1222,7 @@ function dhdAddressEntry()
   gpu.set(42, 6, "Use the DHD to dial the glyphs of the address, excluding the 'Point of Origin'.")
   gpu.set(42, 7, "Then hit the 'Big Red Button'")
   while DHD_AdrEntryMode do
-    os.sleep()
+    os.sleep(0.05)
     if WasCanceled then
       allGood = false
       WasCanceled = false
@@ -1798,9 +1901,7 @@ local EventListeners = {
   end),
 
   scroll = event.listen("scroll", function(_, screenAddress, x, y, direction, playerName)
-      for _,v in pairs(ChildThread) do v:suspend() end
-      if not GateEntriesWindow.isRedrawing then GateEntriesWindow.increment(direction*-1) end
-      for _,v in pairs(ChildThread) do v:resume() end
+      GateEntriesWindow.increment(direction*-1)
   end),
 
   component_unavailable = event.listen("component_unavailable", function(_, componentString)
@@ -2008,7 +2109,7 @@ ChildThread = {
       displayInfoCenter()
       while HadNoError do
         displaySystemStatus()
-        os.sleep()
+        os.sleep(0.1)
       end
     end, debug.traceback)
   end),
@@ -2026,11 +2127,6 @@ ChildThread = {
         elseif not CloseGateButton.disabled then
           CloseGateButton:disable(true)
         end
-        -- if GateStatusString ~= "idle" or GateEntriesWindow.selectedIndex == 0 or GateEntriesWindow.selectedIndex == nil or GateEntriesWindow.canDial[GateEntriesWindow.selectedIndex] == false then
-          -- buttons.dialButton:disable(true)
-        -- elseif buttons.dialButton.disabled then
-          -- buttons.dialButton:disable(false)
-        -- end
         if GateStatusString == "dialing" and not UNGateResetting and not DialingInterlocked then
           DialingInterlocked = true
           if sg.dialedAddress == "[]" then glyphListWindow.reset() end
@@ -2052,7 +2148,7 @@ ChildThread = {
           end
         end
         if GateStatusString == "dialing" and ComputerDialingInterlocked and not AbortingDialing then abortDialing() end
-        os.sleep()
+        os.sleep(0.1)
       end, debug.traceback)
     end
   end),
@@ -2075,9 +2171,9 @@ ChildThread = {
           gpu.set(84, 47, "Gate Status: "..tostring(GateStatusString).." | "..tostring(GateStatusBool))
           gpu.set(120, 45, "Drive Usage: "..used.."/"..total.." "..math.floor((used/total)*100).."%")
           gpu.set(120, 46, "manualAdrEntryMode: "..tostring(manualAdrEntryMode))
-          gpu.set(120, 47, DebugEventName)
+          gpu.set(120, 47, "DatabaseWriteTimer ID: "..tostring(DatabaseWriteTimer))
         end
-        os.sleep()
+        os.sleep(0.1)
       end
     end, debug.traceback)
   end)

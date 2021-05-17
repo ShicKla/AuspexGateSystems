@@ -5,6 +5,10 @@
 * Added a backup to floppy utility which can be found in the '/ags' directory
 
 # Dialing Program
+### 0.6.4
+* Added Dialing History
+* Added ability to tag favorite address entries
+* Added ability to move the position of address entries
 ### 0.6.3
 * Added support of Pegasus Stargates
 ### 0.6.1:

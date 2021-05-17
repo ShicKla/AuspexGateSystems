@@ -56,7 +56,8 @@ GlyphsPG = {"Aaxel","Abrin","Acjesis","Aldeni","Alura","Amiwill","Arami","Avoniv
 GateType = ""
 GateTypeName = ""
 ConnectionErrorString = "Communication error with Stargate. Please disconnect and reconnect.\nIf problem persists verify AUNIS 1.9.6 or greater is installed, and replace Stargate base block."
-DatabaseFile = "gateEntries.ff"
+local DatabaseFile = "gateEntries.ff"
+local DatabaseFileBackup = "gateEntries.bak"
 gateEntries = {}
 historyEntries = {}
 AddressBuffer = {}
@@ -233,18 +234,46 @@ function HistoryEntry(ge)
   table.insert(historyEntries, ge)
 end
 
-function readAddressFile()
-  gateEntries = {}
-  historyEntries = {}
+local function initialLoadAddressFile()
   local file = io.open(DatabaseFile, "r")
   if file == nil then
     file = io.open(DatabaseFile, "w")
-    file:close()
   end
+  file:close()
+  gateEntries = {}
+  historyEntries = {}
+  dofile(DatabaseFile)
+  if #gateEntries > 0 then
+      file, msg = io.open(DatabaseFileBackup, "w")
+      for i,v in ipairs(gateEntries) do
+        file:write("GateEntry"..serialization.serialize(v).."\n")
+      end
+      file:write("\n")
+      for i,v in ipairs(historyEntries) do
+        file:write("HistoryEntry"..serialization.serialize(v).."\n")
+      end
+      file:close()  
+  else
+    file = io.open(DatabaseFileBackup, "r")
+    if file ~= nil then
+      file:close()
+      dofile(DatabaseFileBackup)
+    end  
+  end
+end
+
+local function readAddressFile()
+  local file = io.open(DatabaseFile, "r")
+  if file == nil then
+    file = io.open(DatabaseFile, "w")
+  end
+  file:close()
+  gateEntries = {}
+  historyEntries = {}
   dofile(DatabaseFile)
 end
 
-function writeToDatabase()
+local function writeToDatabase()
   if DatabaseWriteTimer ~= nil then
     event.cancel(DatabaseWriteTimer)
     DatabaseWriteTimer = nil
@@ -2098,7 +2127,7 @@ HadNoError, ErrorMessage = xpcall(function()
   localUNAddress = sg.stargateAddress.UNIVERSE
   localPGAddress = sg.stargateAddress.PEGASUS
   term.clear()
-  readAddressFile()
+  initialLoadAddressFile()
   GateEntriesWindow.set()
 end, debug.traceback)
 

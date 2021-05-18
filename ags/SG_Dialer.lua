@@ -309,7 +309,7 @@ function clearDisplay()
   for k in pairs(buttons) do buttons[k]:hide() end
   gateRingDisplay.isActive = false
   gpu.fill(41, 2, 120-(2*glyphListWindow.width), 39, " ")
-  gpu.fill(43, 2, 118-(2*glyphListWindow.width), 42, " ")
+  gpu.fill(43, 2, 107-(2*glyphListWindow.width), 42, " ")
 end
 
 function checkGlyph(glyph, adrType)
@@ -447,7 +447,9 @@ end
 -- End of Special Functions --------------------------------------------------------
 
 -- Info Center ---------------------------------------------------------------------
-function displayInfoCenter()
+local InfoCenter = {}
+
+function InfoCenter.display()
   gpu.setBackground(0x000000)
   gpu.fill(1, term.window.height-6, term.window.width, 1, "═")
   gpu.fill(1, term.window.height-5, 1, 4, "║")
@@ -456,12 +458,19 @@ function displayInfoCenter()
   gpu.fill(1, term.window.height-1, term.window.width, 1, "═")
   gpu.set(1, term.window.height-6, "╔╡System Status╞")
   gpu.set(46, term.window.height-6, "╦")
-  gpu.set(47, term.window.height-6, "╡This Stargate's Addresses╞")
   gpu.set(term.window.width, term.window.height-6, "╗")
   gpu.set(1, term.window.height-1, "╚")
   gpu.set(46, term.window.height-1, "╩")
   gpu.set(term.window.width, term.window.height-1, "╝")
+  
+  gpu.set(143, term.window.height-6, "╡Local Addresses╞") -- Local Addresses
   displayLocalAddress(48,term.window.height-5)
+end
+
+function displayLocalAddress(xPos,yPos)
+  gpu.set(xPos, yPos, "Milky Way "..addressToString(localMWAddress))
+  gpu.set(xPos, yPos+1, "Universe  "..addressToString(localUNAddress))
+  gpu.set(xPos, yPos+2, "Pegasus   "..addressToString(localPGAddress))
 end
 
 function displaySystemStatus()
@@ -488,12 +497,6 @@ function displaySystemStatus()
   gpu.set(xPos+1, yPos, "Energy Level: "..energyStored.."/"..energyMax.." RF "..math.floor((energyStored/energyMax)*100).."%")
   gpu.set(xPos+1, yPos+1, "Capacitors Installed: "..capCount.."/3")
   gpu.set(xPos+1, yPos+2, "Computer Memory Remaining: "..math.floor((freeMemory/totalComputerMemory)*100).."%")
-end
-
-function displayLocalAddress(xPos,yPos)
-  gpu.set(xPos, yPos, "Milky Way "..addressToString(localMWAddress))
-  gpu.set(xPos, yPos+1, "Universe  "..addressToString(localUNAddress))
-  gpu.set(xPos, yPos+2, "Pegasus   "..addressToString(localPGAddress))
 end
 
 AlertThread = nil
@@ -600,13 +603,11 @@ function GateEntriesWindow.update()
     gpu.setBackground(0x000000)
     gpu.set(31, 2,  "History")
     self.loadedEntries = gateEntries
-    ClearHistoryButton:hide()
   elseif self.mode == "history" then
     gpu.set(31, 2,  "History")
     gpu.setBackground(0x000000)
     gpu.set(3, 2,  "Gate Entries")
     self.loadedEntries = historyEntries
-    if #historyEntries > 0 then ClearHistoryButton:display() end
   end
   for i,v in ipairs(self.loadedEntries) do
     strBuf = v.name
@@ -719,31 +720,32 @@ end
 
 function GateEntriesWindow.touch(x, y)
   local self = GateEntriesWindow
-  if x >= self.xPos and x <= 38 and y >= self.yPos and y <= 40 then
-    if not ComputerDialingInterlocked and not addAddressMode and not editGateEntryMode then
-      self.selectedIndex = self.currentIndices[y - 2]
-      if self.selectedIndex == nil then self.selectedIndex = 0 end
-      if (x == 33 or x== 35 or x == 37) and self.mode == "database" then
-        self.changePosition(x, y)
+    if x >= self.xPos and x <= 38 and y >= self.yPos and y <= 40 then
+      if not ComputerDialingInterlocked and not editGateEntryMode then
+        if addAddressMode and self.mode == "database" then return end
+        self.selectedIndex = self.currentIndices[y - 2]
+        if self.selectedIndex == nil then self.selectedIndex = 0 end
+        if (x == 33 or x== 35 or x == 37) and self.mode == "database" then
+          self.changePosition(x, y)
+        end
+        self.display()
+        updateButtons()
+        if self.mode == "database" then
+          glyphListWindow.insertAddress(gateEntries[GateEntriesWindow.selectedIndex].gateAddress[GateType])
+        else
+          glyphListWindow.insertAddress(historyEntries[GateEntriesWindow.selectedIndex].gateAddress[GateType])
+        end
       end
-      self.display()
+    elseif ((x >= 3 and x <= 13) or (x >= 31 and x <= 37)) and y == 2 and not editGateEntryMode then
+      if x >= 3 and x <= 13 then
+        self.mode = "database"
+      elseif x >= 31 and x <= 37 then
+        self.mode = "history"
+      end
+      self.selectedIndex = 0
       updateButtons()
-      if self.mode == "database" then
-        glyphListWindow.insertAddress(gateEntries[GateEntriesWindow.selectedIndex].gateAddress[GateType])
-      else
-        glyphListWindow.insertAddress(historyEntries[GateEntriesWindow.selectedIndex].gateAddress[GateType])
-      end
+      self.update()
     end
-  elseif ((x >= 3 and x <= 13) or (x >= 31 and x <= 37)) and y == 2 then
-    if x >= 3 and x <= 13 then
-      self.mode = "database"
-    elseif x >= 31 and x <= 37 then
-      self.mode = "history"
-    end
-    self.selectedIndex = 0
-    updateButtons()
-    self.update()
-  end
 end
 
 function GateEntriesWindow.changePosition(x, y)
@@ -816,6 +818,8 @@ function glyphListWindow.initialize(glyphType)
     self.glyphs = GlyphsPG
   end
   gpu.fill(self.xPos-self.width, self.yPos, 2*self.width, term.window.height-8, " ")
+  -- gpu.fill(self.xPos-self.width, self.yPos, 2*self.width, 20, " ")
+  -- gpu.fill(self.xPos, self.yPos, self.width, term.window.height-8, " ")
   self.width = 1
   self.xPos = term.window.width
   for i,v in ipairs(self.glyphs) do
@@ -1141,7 +1145,7 @@ end
 
 -- Address Entry -------------------------------------------------------------------
 function addressEntry(adrType)
-  addAddressMode = true;
+  addAddressMode = true
   adrEntryType = adrType
   AddressBuffer = {}
   clearDisplay()
@@ -1158,6 +1162,7 @@ function addressEntry(adrType)
 end
 
 function addNewGateEntry()
+  addAddressMode = true
   alert("", -1)
   clearDisplay()
   HelpButton:disable(true)
@@ -1465,7 +1470,7 @@ function gateRingDisplay.initialize()
   elseif GateType == "UN" then
     dofile("glyphsUN.ff") -- Loads UN Glyph Images
   elseif GateType == "PG" then
-    dofile("glyphsPG.ff") -- Loads UN Glyph Images
+    dofile("glyphsPG.ff") -- Loads PG Glyph Images
   end
   self.ringTbl, self.topTbl, self.midTbl, self.botTbl = {},{},{},{}
   self.chevTbl = {"⢤⣤⣤⣤⣤⡤","⠀⢻⣿⣿⡟","⠀⠀⢻⡟"}
@@ -1949,14 +1954,15 @@ local EventListeners = {
 
 -- Buttons -------------------------------------------------------------------------
 buttons = {
-  dialButton = Button.new(41, 2, 0, 3, "  Dial  ", function()
+  dialButton = Button.new(41, 2, 0, 3, " Dial ", function()
     if GateEntriesWindow.mode == "database" then
       dialAddress(gateEntries[GateEntriesWindow.selectedIndex])
     elseif GateEntriesWindow.mode == "history" then
       dialAddress(historyEntries[GateEntriesWindow.selectedIndex])
     end
+    updateButtons()
   end),
-  editButton = Button.new(64, 2, 0, 3, "Edit Entry", function()
+  editButton = Button.new(62, 2, 0, 3, "Edit Entry", function()
       editGateEntry(GateEntriesWindow.selectedIndex)
   end),
   renameButton = Button.new(41, 21, 0, 3, "Rename Entry", function()
@@ -1971,7 +1977,7 @@ buttons = {
   deleteNoButton = Button.new(59, 25, 0, 3, " No  ", function()
     deleteGateEntry(-1)
   end, false),
-  addEntryButton = Button.new(52, 2, 0, 3, "Add Entry", function()
+  addEntryButton = Button.new(50, 2, 0, 3, "Add Entry", function()
     addNewGateEntry()
   end),
   abortDialingButton = Button.new(41, 2, 0, 3, "Abort Dialing", function()
@@ -2021,10 +2027,13 @@ buttons = {
 QuitButton = Button.new(1, 41, 0, 3, "Quit", function()
   MainLoop = false
 end)
+
 HelpButton = Button.new(8, 41, 0, 0, "Help", function()
   HelpWindow.toggle()
 end)
+
 CloseGateButton = Button.new(15, 41, 0, 3, "Close Gate", function()
+-- CloseGateButton = Button.new(126, 41, 0, 3, "Close Gate", function()
   local s,f = sg.disengageGate()
   if f == "stargate_failure_wrong_end" then
     alert("CAN NOT CLOSE AN INCOMING CONNECTION", 2)
@@ -2032,12 +2041,13 @@ CloseGateButton = Button.new(15, 41, 0, 3, "Close Gate", function()
     alert("GATE IS NOT OPEN", 1)
   end
 end)
-ClearHistoryButton = Button.new(28, 41, 0, 0, "Clear History", function()
+
+-- ClearHistoryButton = Button.new(28, 41, 0, 0, "Clear History", function()
+ClearHistoryButton = Button.new(62, 2, 0, 0, "Clear History", function()
   historyEntries = {}
   writeToDatabase()
-  ClearHistoryButton:hide()
+  ClearHistoryButton:disable(true)
 end)
-
 
 function updateButtons()
   if GateEntriesWindow.canDial[GateEntriesWindow.selectedIndex] == true and GateStatusString == "idle" then
@@ -2045,10 +2055,21 @@ function updateButtons()
   else
     buttons.dialButton:disable(true)
   end
-  if GateEntriesWindow.mode == "database" then
-    buttons.editButton:disable(false)
-  elseif GateEntriesWindow.mode == "history" then
-    buttons.editButton:disable(true)
+  if ComputerDialingInterlocked or addAddressMode or editGateEntryMode then
+    ClearHistoryButton:hide()
+    buttons.editButton:hide()
+  else
+    if GateEntriesWindow.mode == "database" then
+      ClearHistoryButton:hide()
+      buttons.editButton:display()
+      if GateEntriesWindow.selectedIndex == nil or GateEntriesWindow.selectedIndex == 0 then
+        buttons.editButton:disable(true)
+      end
+    elseif GateEntriesWindow.mode == "history" then
+      buttons.editButton:hide()
+      ClearHistoryButton:display()
+      if #historyEntries < 1 then ClearHistoryButton:disable(true) end
+    end
   end
 end
 -- End of Buttons ------------------------------------------------------------------
@@ -2108,7 +2129,7 @@ function toggleDebugMode()
       alert("DEBUG MODE ACTIVATED", 1)
       DebugMode = true
       ChildThread.debugWindowThread:resume()
-      gpu.set(47, 44, "╡Debug Info╞═══════════════")
+      gpu.set(47, 49, "╡Debug Info╞")
     elseif DebugMode then
       alert("DEBUG MODE DEACTIVATED", 1)
       DebugMode = false
@@ -2116,7 +2137,7 @@ function toggleDebugMode()
       os.sleep()
       gpu.fill(150, 43, 10, 1, " ")
       gpu.fill(48, 45, 110, 4, " ")
-      gpu.set(47, 44, "╡This Stargate's Addresses╞")
+      gpu.set(47, 49, "════════════")
       displayLocalAddress(48,term.window.height-5)
     end 
 end
@@ -2135,7 +2156,7 @@ end, debug.traceback)
 ChildThread = {
   statusThread = thread.create(function()
     HadNoError, ErrorMessage = xpcall(function()
-      displayInfoCenter()
+      InfoCenter.display()
       while HadNoError do
         displaySystemStatus()
         os.sleep(0.1)
@@ -2224,7 +2245,7 @@ function mainInterface(shouldClear)
   if glyphListWindow.glyphType ~= GateType then glyphListWindow.initialize(GateType) end
   glyphListWindow.display()
   buttons.dialButton:display()
-  buttons.editButton:display()
+  -- buttons.editButton:display()
   buttons.addEntryButton:display()
   updateButtons()
   if HelpButton.disabled then HelpButton:disable(false) end

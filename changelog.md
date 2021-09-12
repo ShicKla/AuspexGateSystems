@@ -5,6 +5,12 @@
 * Added a backup to floppy utility which can be found in the '/ags' directory
 
 # Dialing Program
+### 0.6.5
+* Fixed bug where computer would start dialing a Pegasus Gate on its own
+* Fixed bug when editing of existing gate entry addresses
+* Added ability to add an address with Pegasus DHD
+* Added basic iris and shield control
+* Updated Pegasus glyph images
 ### 0.6.4
 * Added Dialing History
 * Added ability to tag favorite address entries

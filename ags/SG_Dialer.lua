@@ -1,6 +1,6 @@
 --[[
 Created By: Augur ShicKla
-v0.6.4
+v0.6.5
 
 System Requirements:
 Tier 3.5 Memory
@@ -8,7 +8,7 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
-Version = "0.6.4"
+Version = "0.6.5"
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -84,6 +84,7 @@ RootDrive = nil
 DialedAddress = {}
 IncomingWormhole = false
 GateStatusString, GateStatusBool = nil
+local IrisType = nil
 local DatabaseWriteTimer = nil
 -- End of Declarations -------------------------------------------------------------
 
@@ -148,6 +149,7 @@ end
 
 function Button.display(self, x, y)
   table.insert(ActiveButtons, 1, self)
+  if (self.width-2) < unicode.len(self.label) then self.width = unicode.len(self.label)+2 end
   if x ~= nil and y ~= nil then
     self.xPos = x
     self.yPos = y
@@ -467,27 +469,75 @@ end
 function displaySystemStatus()
   local xPos = 2
   local yPos = 45
-  local energyStored = sg.getEnergyStored()
-  local energyMax = sg.getMaxEnergyStored()
-  local capCount = sg.getCapacitorsInstalled()
+  local energyStored = 0
+  local energyMax = 0
+  local capCount = 0
+  local irisState = nil
+  local status, err = pcall(function()
+    energyStored = sg.getEnergyStored()
+    energyMax = sg.getMaxEnergyStored()
+    capCount = sg.getCapacitorsInstalled()  
+  end)
+  if status == false then
+    ErrorMessage = "Stargate Has Been Disconnected"
+    HadNoError = false
+    MainLoop = false
+  end
+  pcall(function() 
+    irisState = sg.getIrisState()
+  end)
   local freeMemory = computer.freeMemory()
   local totalComputerMemory = computer.totalMemory()
-  gpu.set(33, term.window.height-6, "╡")
-  gpu.set(45, term.window.height-6, "╞")
+  gpu.set(17, term.window.height-6, "╡")
+  gpu.set(29, term.window.height-6, "╞")
   gpu.setForeground(0x000000)
   if GateStatusString == "open" then
     gpu.setBackground(0xFFFF00)
-    gpu.set(34, term.window.height-6, " GATE OPEN ")
+    gpu.set(18, term.window.height-6, " GATE OPEN ")
   else
     gpu.setBackground(0x00FF00)
-    gpu.set(34, term.window.height-6, "GATE CLOSED")
+    gpu.set(18, term.window.height-6, "GATE CLOSED")
   end
   gpu.setForeground(0xFFFFFF)
   gpu.setBackground(0x000000)
-  gpu.fill(xPos, yPos, 44, 3, " ")
+  gpu.set(30, term.window.height-6, "═════════════")
+  if IrisType ~= nil and IrisType ~= "NULL" then
+    if IrisType == "SHIELD" then
+      gpu.set(30, term.window.height-6, "╡░░░░░░░░░░╞")
+      if irisState == "OPENED" then
+        if GateStatusString == "open" and GateStatusBool == false then
+          gpu.setForeground(0x000000)
+          gpu.setBackground(0xFFFF00)
+        end
+        gpu.set(31, term.window.height-6, "SHIELD OFF")
+      elseif irisState == "CLOSED" then
+        gpu.set(31, term.window.height-6, "SHIELD ON ")
+      end
+    else
+      gpu.set(30, term.window.height-6, "╡░░░░░░░░░░░╞")
+      if irisState == "OPENED" then
+        if GateStatusString == "open" and GateStatusBool == false then
+          gpu.setForeground(0x000000)
+          gpu.setBackground(0xFFFF00)
+        end
+        gpu.set(31, term.window.height-6, " IRIS OPEN ")
+      elseif irisState == "CLOSED" then
+        gpu.set(31, term.window.height-6, "IRIS CLOSED")
+      end
+    end
+    gpu.setForeground(0xFFFFFF)
+    gpu.setBackground(0x000000)
+  end
+  gpu.fill(xPos, yPos, 44, 4, " ")
   gpu.set(xPos+1, yPos, "Energy Level: "..energyStored.."/"..energyMax.." RF "..math.floor((energyStored/energyMax)*100).."%")
   gpu.set(xPos+1, yPos+1, "Capacitors Installed: "..capCount.."/3")
   gpu.set(xPos+1, yPos+2, "Computer Memory Remaining: "..math.floor((freeMemory/totalComputerMemory)*100).."%")
+  -- if IrisType == nil or IrisType == "NULL" then
+    -- gpu.set(xPos+1, yPos+2, "Computer Memory Remaining: "..math.floor((freeMemory/totalComputerMemory)*100).."%")
+  -- else
+    -- gpu.set(xPos+1, yPos+2, "Iris Durability: "..sg.getIrisDurability())
+    -- gpu.set(xPos+1, yPos+3, "Computer Memory Remaining: "..math.floor((freeMemory/totalComputerMemory)*100).."%")
+  -- end
 end
 
 function displayLocalAddress(xPos,yPos)
@@ -561,6 +611,11 @@ function GateEntriesWindow.set()
   self.scrollDnButton = Button.new(30, 39, 0, 0, "↓PgDn↓", function()
     GateEntriesWindow.increment(1)
   end, false)
+  self.clearHistoryButton = Button.new(13, 39, 0, 0, "Clear History", function()
+    historyEntries = {}
+    writeToDatabase()
+    -- GateEntriesWindow.clearHistoryButton:hide()
+  end, false)
   self.update()
 end
 
@@ -600,13 +655,23 @@ function GateEntriesWindow.update()
     gpu.setBackground(0x000000)
     gpu.set(31, 2,  "History")
     self.loadedEntries = gateEntries
-    ClearHistoryButton:hide()
+    -- ClearHistoryButton:hide()
+    self.clearHistoryButton:hide()
+    gpu.set(13, 40, "═══════════════")
   elseif self.mode == "history" then
     gpu.set(31, 2,  "History")
     gpu.setBackground(0x000000)
     gpu.set(3, 2,  "Gate Entries")
     self.loadedEntries = historyEntries
-    if #historyEntries > 0 then ClearHistoryButton:display() end
+    if #historyEntries > 0 then
+      self.clearHistoryButton:display()
+      gpu.set(13, 40, "╡░░░░░░░░░░░░░╞")
+      self.clearHistoryButton:display()
+      -- ClearHistoryButton:display()
+    else
+      self.clearHistoryButton:hide()
+      gpu.set(13, 40, "═══════════════")
+    end
   end
   for i,v in ipairs(self.loadedEntries) do
     strBuf = v.name
@@ -643,13 +708,17 @@ function GateEntriesWindow.update()
     table.insert(self.canDial, dialable)
   end
   if #self.entryStrings > self.range.height then
-    gpu.set(1, 40, "╚═╡░░░░░░╞═══════════════════╡░░░░░░╞═╝")
+    -- gpu.set(1, 40, "╚═╡░░░░░░╞═══════════════════╡░░░░░░╞═╝")
+    gpu.set(3, 40, "╡░░░░░░╞")
+    gpu.set(30, 40, "╡░░░░░░╞")
     self.scrollUpButton:display()
     self.scrollDnButton:display()
   else
     self.scrollUpButton:hide()
     self.scrollDnButton:hide()
-    gpu.fill(2, 40, 37, 1, "═")
+    -- gpu.fill(2, 40, 37, 1, "═")
+    gpu.set(3, 40, "════════")
+    gpu.set(30, 40, "════════")
   end
   self.display()
 end
@@ -981,7 +1050,9 @@ function glyphListWindow.reset()
   self.selectedGlyphs = {}
   buttons.glyphResetButton:hide()
   self.display()
-  GateEntriesWindow.selectedIndex = 0
+  if not editGateEntryMode then
+    GateEntriesWindow.selectedIndex = 0
+  end
   GateEntriesWindow.display()
   updateButtons()
 end
@@ -1150,6 +1221,8 @@ function addressEntry(adrType)
   buttons.manualEntryButton:display()
   if GateType == "MW" and adrType == "MW" then
     buttons.dhdEntryButton:display()
+  elseif GateType == "PG" and adrType == "PG" then
+    buttons.dhdEntryButton:display()
   elseif GateType == "UN" and adrType == "UN" then
     buttons.dialerEntryButton:display()
   else
@@ -1271,7 +1344,7 @@ function dhdAddressEntry()
     if #AddressBuffer < 6 then
       alert("ADDRESS WAS TOO SHORT", 2)
     else
-      completeAddressEntry("MW")
+      completeAddressEntry(GateType)
       addAddressMode = false
     end
   end
@@ -1279,7 +1352,6 @@ function dhdAddressEntry()
 end
 
 function dialerAddressEntry()
-  alert("", -1)
   local allGood = true
   local dialing = false
   clearDisplay()
@@ -1293,6 +1365,7 @@ function dialerAddressEntry()
   gpu.set(42, 8, "The gate will close automatically after address capture.")
   gpu.setForeground(0xFFFFFF)
   gpu.set(42, 9, "Please begin dialing or push 'Cancel'")
+  -- while dialerAdrEntryMode do os.sleep(0.1) end
   while dialerAdrEntryMode do
     os.sleep(0.05)
     if WasCanceled then
@@ -1312,9 +1385,6 @@ function dialerAddressEntry()
       end
     end
   end
-  while sg.getGateStatus() == "unstable" do os.sleep() end
-  sg.disengageGate()
-  dialerAdrEntryMode = false
   if allGood then
     AddressBuffer = {}
     for i,v in ipairs(glyphListWindow.selectedGlyphs) do
@@ -1327,6 +1397,7 @@ function dialerAddressEntry()
     completeAddressEntry("UN")
     addAddressMode = false
   end
+  dialerAdrEntryMode = false
 end
 
 function manualAddressEntry()
@@ -1337,6 +1408,8 @@ function manualAddressEntry()
     manualAdrEntryMode = true
     if glyphListWindow.glyphType ~= adrEntryType then
       glyphListWindow.initialize(adrEntryType)
+    else
+      glyphListWindow.display()
     end
     gpu.set(42, 6, "Enter the address using the glyphs to the right. Then hit 'Origin' to complete.")
     while manualAdrEntryMode do os.sleep() end
@@ -1791,20 +1864,29 @@ end
 -- Event Section -------------------------------------------------------------------
 local EventListeners = {
   stargate_spin_chevron_engaged = event.listen("stargate_spin_chevron_engaged", function(_, _, caller, num, lock, glyph)
-    if lock then
-      alert("CHEVRON "..math.floor(num).." LOCKED", 1)
-      if not AbortingDialing then sg.engageGate() end
-      os.sleep()
-    else
-      if (num) < 7 then
+    if ComputerDialingInterlocked then
+      if lock then
+        alert("CHEVRON "..math.floor(num).." LOCKED", 1)
+        if not AbortingDialing then sg.engageGate() end
+        os.sleep()
       else
-      end        
-      os.sleep()
-      if not AbortingDialing then 
-        alert("CHEVRON "..math.floor(num).." ENGAGED", 0)
-        dialNext(num)
+        if (num) < 7 then
+        else
+        end        
+        os.sleep()
+        if not AbortingDialing then 
+          alert("CHEVRON "..math.floor(num).." ENGAGED", 0)
+          dialNext(num)
+        end
       end
+    else
+      os.sleep(0.1)
+      glyphListWindow.showAddress()
     end
+  end),
+  
+  stargate_dhd_chevron_engaged = event.listen("stargate_dhd_chevron_engaged", function()
+    glyphListWindow.showAddress()
   end),
   
   stargate_incoming_wormhole = event.listen("stargate_incoming_wormhole", function(_, _, caller, dialedAddressSize)
@@ -1826,7 +1908,6 @@ local EventListeners = {
   end),
 
   stargate_open = event.listen("stargate_open", function(_, _, caller, isInitiating)
-    if dialerAdrEntryMode then dialerAdrEntryMode = false end
     if DialingInterlocked then DialingInterlocked = false end
     finishDialing()
     glyphListWindow.locked = false
@@ -1835,6 +1916,14 @@ local EventListeners = {
     gateRingDisplay.eventHorizon(true)
     if isInitiating then
       updateHistory()
+    end
+  end),
+  
+  stargate_wormhole_stabilized = event.listen("stargate_wormhole_stabilized", function(_, _, caller, isInitiating)
+    if dialerAdrEntryMode then
+      os.sleep(0.1)
+      sg.disengageGate()
+      dialerAdrEntryMode = false
     end
   end),
 
@@ -1916,6 +2005,10 @@ local EventListeners = {
   end),
 
   touch = event.listen("touch", function(_, screenAddress, x, y, button, playerName)
+    if DebugMode then
+      gpu.fill(150, 43, 10, 1, " ") -- For Debug
+      gpu.set(150, 43, x..", "..y)  -- For Debug
+    end
     if button == 0 then
       for i,v in ipairs(ActiveButtons) do
         if v:touch(x,y) then break end
@@ -1923,22 +2016,23 @@ local EventListeners = {
       glyphListWindow.touch(x, y)
       GateEntriesWindow.touch(x, y)
     end
-    if DebugMode then
-      gpu.fill(150, 43, 10, 1, " ") -- For Debug
-      gpu.set(150, 43, x..", "..y)  -- For Debug
-    end
   end),
 
   scroll = event.listen("scroll", function(_, screenAddress, x, y, direction, playerName)
       GateEntriesWindow.increment(direction*-1)
   end),
 
-  component_unavailable = event.listen("component_unavailable", function(_, componentString)
-    if componentString == "stargate" then
-      ErrorMessage = "Stargate Has Been Disconnected"
-      HadNoError = false
-    end
-  end),
+  -- component_unavailable = event.listen("component_unavailable", function(_, componentString)
+    -- if componentString == "stargate" then
+      -- alert(componentString, 3)
+      -- error("Stargate Has Been Disconnected")
+      -- ErrorMessage = "Stargate Has Been Disconnected"
+      -- HadNoError = false
+      -- while MainLoop do 
+        -- MainLoop = false
+      -- end
+    -- end
+  -- end),
 
   interruptedEvent = event.listen("interrupted", function()
     wasTerminated = true
@@ -2032,11 +2126,14 @@ CloseGateButton = Button.new(15, 41, 0, 3, "Close Gate", function()
     alert("GATE IS NOT OPEN", 1)
   end
 end)
-ClearHistoryButton = Button.new(28, 41, 0, 0, "Clear History", function()
-  historyEntries = {}
-  writeToDatabase()
-  ClearHistoryButton:hide()
+IrisToggleButton = Button.new(28, 41, 0, 0, " ", function()
+  sg.toggleIris()
 end)
+-- ClearHistoryButton = Button.new(28, 41, 0, 0, "Clear History", function()
+  -- historyEntries = {}
+  -- writeToDatabase()
+  -- ClearHistoryButton:hide()
+-- end)
 
 
 function updateButtons()
@@ -2147,7 +2244,9 @@ ChildThread = {
     CloseGateButton:display()
     while HadNoError do
       HadNoError, ErrorMessage = xpcall(function()
-        GateStatusString, GateStatusBool = sg.getGateStatus()
+        GateStatusString = nil
+        GateStatusBool = nil
+        pcall(function() GateStatusString, GateStatusBool = sg.getGateStatus() end)
         if GateStatusBool ~= nil and GateStatusBool == true then
           OutgoingWormhole = true
           if CloseGateButton.disabled then
@@ -2166,7 +2265,9 @@ ChildThread = {
             gateRingDisplay.dialedChevrons(#DialedAddress)
             if buttons.glyphResetButton.visible then buttons.glyphResetButton:hide() end
             if not glyphListWindow.locked then glyphListWindow.locked = true end
-            if GateStatusString == "dialing" then glyphListWindow.showAddress() end
+            if GateStatusString == "dialing" and GateType == "UN" then
+              glyphListWindow.showAddress()
+            end
           end
         end
         if GateStatusString == "idle" and not ComputerDialingInterlocked then
@@ -2179,6 +2280,26 @@ ChildThread = {
         if GateStatusString == "dialing" and ComputerDialingInterlocked and not AbortingDialing then abortDialing() end
         os.sleep(0.1)
       end, debug.traceback)
+      pcall(function()
+        IrisType = sg.getIrisType()
+      end)
+      if IrisType == nil or IrisType == "NULL" then
+        IrisToggleButton:hide()
+      else
+        local labelString = nil
+        if IrisType == "SHIELD" then
+          labelString = "Toggle Shield"
+        else
+          labelString = "Toggle Iris"
+        end
+        if not IrisToggleButton.visible or labelString ~= IrisToggleButton.label then
+          IrisToggleButton:hide()
+          IrisToggleButton.label = labelString
+          IrisToggleButton.width = 1
+          IrisToggleButton:display()
+        end
+      end
+    os.sleep(0.1)
     end
   end),
   
@@ -2187,7 +2308,8 @@ ChildThread = {
       while HadNoError do
         local used = RootDrive.spaceUsed()
         local total = RootDrive.spaceTotal()
-        local dialedAddress = sg.dialedAddress
+        local dialedAddress = nil
+        pcall(function() dialedAddress = sg.dialedAddress end)
         gpu.fill(3, 48, 40, 1, " ")
         if DebugMode then
           gpu.fill(48, 45, 110, 4, " ")
@@ -2198,9 +2320,15 @@ ChildThread = {
           gpu.set(84, 45, "glyphListWindow.locked: "..tostring(glyphListWindow.locked))
           gpu.set(48, 48, tostring(dialedAddress))
           gpu.set(84, 47, "Gate Status: "..tostring(GateStatusString).." | "..tostring(GateStatusBool))
-          gpu.set(120, 45, "Drive Usage: "..used.."/"..total.." "..math.floor((used/total)*100).."%")
-          gpu.set(120, 46, "manualAdrEntryMode: "..tostring(manualAdrEntryMode))
-          gpu.set(120, 47, "DatabaseWriteTimer ID: "..tostring(DatabaseWriteTimer))
+          -- gpu.set(120, 45, "Drive Usage: "..used.."/"..total.." "..math.floor((used/total)*100).."%")
+          -- gpu.set(120, 45, "Index: "..tostring(GateEntriesWindow.selectedIndex))
+          gpu.set(120, 45, "UNGateResetting: "..tostring(UNGateResetting))
+          -- gpu.set(120, 46, "manualAdrEntryMode: "..tostring(manualAdrEntryMode))
+          -- gpu.set(120, 46, "editGateEntryMode: "..tostring(editGateEntryMode))
+          -- gpu.set(120, 47, "DatabaseWriteTimer ID: "..tostring(DatabaseWriteTimer))
+          -- gpu.set(120, 46, "IrisState: "..tostring(sg.getIrisState()))
+          -- gpu.set(120, 47, "IrisType: "..tostring(IrisType))
+          gpu.set(120, 47, "MainLoop: "..tostring(MainLoop))
         end
         os.sleep(0.1)
       end

@@ -1921,7 +1921,7 @@ local EventListeners = {
     end
   end),
   
-  modem_message = event.listen("modem_message", function(_, _, _, port, _, message)
+  event.listen("modem_message", function(_, _, _, port, _, message)
   if(tryIris == 1) then
     tryIris = 0
     message = ""

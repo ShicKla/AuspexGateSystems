@@ -1921,25 +1921,6 @@ local EventListeners = {
     end
   end),
   
-  event.listen("modem_message", function(_, _, _, port, _, message)
-  if(tryIris == 1) then
-    tryIris = 0
-    message = ""
-  else  
-  if(port == portrecive) then
-      if(tostring(message)==IDCM)then
-        m.broadcast(portsend, IDCA)
-        sg.openIris()
-        m.broadcast(portsend, "IDCAa")
-        tryIris=1
-      else
-        m.broadcast(portsend, IDCE)
-        m.broadcast(portsend, IDCEa)
-        tryIris=1
-      end
-    end
-  end
-  end),
 
   stargate_open = event.listen("stargate_open", function(_, _, caller, isInitiating)
     if DialingInterlocked then DialingInterlocked = false end

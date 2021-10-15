@@ -1,7 +1,6 @@
 --[[
 Created By: Augur ShicKla
 v0.6.5
-
 System Requirements:
 Tier 3.5 Memory
 Tier 3 GPU
@@ -47,7 +46,6 @@ end
 
 -- Declarations --------------------------------------------------------------------
 sg = component.stargate
-m = component.modem
 
 GlyphsMW = {"Andromeda","Aquarius","Aries","Auriga","Bootes","Cancer","Canis Minor","Capricornus","Centaurus","Cetus","Corona Australis","Crater","Equuleus","Eridanus","Gemini","Hydra","Leo","Leo Minor","Libra","Lynx","Microscopium","Monoceros","Norma","Orion","Pegasus","Perseus","Pisces","Piscis Austrinus","Sagittarius","Scorpius","Sculptor","Scutum","Serpens Caput","Sextans","Taurus","Triangulum","Virgo"}
 GlyphsPG = {"Aaxel","Abrin","Acjesis","Aldeni","Alura","Amiwill","Arami","Avoniv","Baselai","Bydo","Ca Po","Danami","Dawnre","Ecrumig","Elenami","Gilltin","Hacemill","Hamlinto","Illume","Laylox","Lenchan","Olavii","Once El","Poco Re","Ramnon","Recktic","Robandus","Roehi","Salma","Sandovi","Setas","Sibbron","Tahnan","Zamilloz","Zeo"}
@@ -87,17 +85,6 @@ IncomingWormhole = false
 GateStatusString, GateStatusBool = nil
 local IrisType = nil
 local DatabaseWriteTimer = nil
-tryIris = 0
-IDCA = "IDC Correct"
-IDCAa = "Iris opening"
-IDCE = "IDC not Correct"
-IDCEa = "Iris won't open"
-IDCM = "test"
-portsend= 20 --Please set your port here
-portrecive=portsend+1 
-m.open(portsend)  --open ports
-m.open(portrecive) --open ports
-
 -- End of Declarations -------------------------------------------------------------
 
 -- Pre-Initialization --------------------------------------------------------------
@@ -1138,7 +1125,7 @@ function dialAddress(gateEntry, num)
     alert(tostring("\""..msg.."\" RETURNED FROM getEnergyRequiredToDial()"), 3)
     return
   end
-  -- Smart Dialing --
+    -- Smart Dialing --
   if #AddressBuffer > 6 then
     local shorterAdr = {}
     for i=1,6 do table.insert(shorterAdr, AddressBuffer[i]) end
@@ -1906,10 +1893,10 @@ local EventListeners = {
     if IncomingWormhole == false then
       IncomingWormhole = true
       AbortingDialing = true
+        if (component.stargate.getIrisState=="OPENED") then
+          sg.toggleIris()
+        end
       alert("INCOMING WORMHOLE", 2)
-      if(sg.getIrisState()=="OPENED") then
-        sg.toggleIris()
-      end
       if gateRingDisplay.isActive then
         gateRingDisplay.glyphImage()
         gateRingDisplay.reset()
@@ -1920,26 +1907,6 @@ local EventListeners = {
       os.sleep(3)
       IncomingWormhole = false
     end
-  end),
-  
-  event.listen("modem_message", function(_, _, _, port, _, message)
-  if(tryIris == 1) then
-    tryIris = 0
-    message = ""
-  else  
-  if(port == portrecive) then
-      if(tostring(message)==IDCM)then
-        m.broadcast(portsend, IDCA)
-        sg.toggleIris()
-        m.broadcast(portsend, "IDCAa")
-        tryIris=1
-      else
-        m.broadcast(portsend, IDCE)
-        m.broadcast(portsend, IDCEa)
-        tryIris=1
-      end
-    end
-  end
   end),
 
   stargate_open = event.listen("stargate_open", function(_, _, caller, isInitiating)

@@ -1912,19 +1912,19 @@ local EventListeners = {
     end
   end),
 
-  local function CloseIris()
+  function CloseIris()
     if sg.getIrisState() ~= 'CLOSED' then
         sg.toggleIris()
     end
 end
 
-local function OpenIris()
+function OpenIris()
     if sg.getIrisState() ~= 'OPENED' then
         sg.toggleIris()
     end
 end
 
-local function CheckIDC(incomingIDC)
+function CheckIDC(incomingIDC)
     for idc in idcs do
         if incomingIDC == idc then
             OpenIris()
@@ -1933,7 +1933,7 @@ local function CheckIDC(incomingIDC)
     end
 end
 
-local function IDCIn(_, _, _, _, _, idc)
+function IDCIn(_, _, _, _, _, idc)
     CheckIDC(idc)
 end
 event.listen('modem_message', IDCIn)

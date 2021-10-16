@@ -1912,19 +1912,19 @@ local EventListeners = {
     end
   end),
 
-  function CloseIris()
-    if sg.getIrisState() ~= 'CLOSED' then
+  function closeIris()
+    if (sg.getIrisState() ~= "CLOSED") then
         sg.toggleIris()
     end
 end
 
-function OpenIris()
-    if sg.getIrisState() ~= 'OPENED' then
+function openIris()
+    if (sg.getIrisState() ~= "OPENED") then
         sg.toggleIris()
     end
 end
 
-function CheckIDC(incomingIDC)
+function checkIDC(incomingIDC)
     for idc in idcs do
         if incomingIDC == idc then
             OpenIris()
@@ -1933,10 +1933,10 @@ function CheckIDC(incomingIDC)
     end
 end
 
-function IDCIn(_, _, _, _, _, idc)
-    CheckIDC(idc)
+function iDCIn(_, _, _, _, _, idc)
+    checkIDC(idc)
 end
-event.listen('modem_message', IDCIn())
+event.listen('modem_message', iDCIn())
   
   
   stargate_open = event.listen("stargate_open", function(_, _, caller, isInitiating)

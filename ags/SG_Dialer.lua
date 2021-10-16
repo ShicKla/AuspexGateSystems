@@ -7,10 +7,13 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
+local idcs = {'test idc'}
+
 Version = "0.6.5"
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
+local modem = component.modem
 os = require("os")
 term = require("term")
 thread = require("thread")
@@ -1893,9 +1896,7 @@ local EventListeners = {
     if IncomingWormhole == false then
       IncomingWormhole = true
       AbortingDialing = true
-        if (component.stargate.getIrisState=="OPENED") then
-          sg.toggleIris()
-        end
+      CloseIris()
       alert("INCOMING WORMHOLE", 2)
       if gateRingDisplay.isActive then
         gateRingDisplay.glyphImage()
@@ -1909,6 +1910,32 @@ local EventListeners = {
     end
   end),
 
+  local function CloseIris(...)
+    if sg.getIrisState() ~= 'CLOSED' then
+        sg.toggleIris()
+    end
+end
+
+local function OpenIris(...)
+    if sg.getIrisState() ~= 'OPENED' then
+        sg.toggleIris()
+    end
+end
+
+local function CheckIDC(incomingIDC)
+    for idc in idcs do
+        if incomingIDC == idc then
+            OpenIris()
+        end
+    end
+end
+
+local function IDCIn(_, _, _, _, _, idc, ...)
+    CheckIDC(idc)
+end
+event.listen('modem_message', IDCIn)
+  
+  
   stargate_open = event.listen("stargate_open", function(_, _, caller, isInitiating)
     if DialingInterlocked then DialingInterlocked = false end
     finishDialing()
@@ -1939,6 +1966,7 @@ local EventListeners = {
     gateRingDisplay.reset()
     os.sleep(1.5)
     alert("CONNECTION HAS CLOSED", 1)
+    OpenIris()
     gateRingDisplay.eventHorizon(false)
   end),
 

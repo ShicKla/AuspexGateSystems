@@ -1936,7 +1936,7 @@ end
 function IDCIn(_, _, _, _, _, idc)
     CheckIDC(idc)
 end
-event.listen('modem_message', IDCIn)
+event.listen('modem_message', IDCIn())
   
   
   stargate_open = event.listen("stargate_open", function(_, _, caller, isInitiating)

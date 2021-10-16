@@ -7,7 +7,7 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
-local idcs = {'test idc'}
+local idcs = {'trc1','trc2'}
 
 Version = "0.6.5"
 local component = require("component")
@@ -1897,6 +1897,8 @@ local EventListeners = {
       IncomingWormhole = true
       AbortingDialing = true
       CloseIris()
+      modem.open(985) -- Incoming Message
+      modem.open(986) -- Outgoing Message
       alert("INCOMING WORMHOLE", 2)
       if gateRingDisplay.isActive then
         gateRingDisplay.glyphImage()
@@ -1910,13 +1912,13 @@ local EventListeners = {
     end
   end),
 
-  local function CloseIris(...)
+  local function CloseIris()
     if sg.getIrisState() ~= 'CLOSED' then
         sg.toggleIris()
     end
 end
 
-local function OpenIris(...)
+local function OpenIris()
     if sg.getIrisState() ~= 'OPENED' then
         sg.toggleIris()
     end
@@ -1926,11 +1928,12 @@ local function CheckIDC(incomingIDC)
     for idc in idcs do
         if incomingIDC == idc then
             OpenIris()
+            modem.broadcast(986, "Iris opening")
         end
     end
 end
 
-local function IDCIn(_, _, _, _, _, idc, ...)
+local function IDCIn(_, _, _, _, _, idc)
     CheckIDC(idc)
 end
 event.listen('modem_message', IDCIn)
@@ -1967,6 +1970,8 @@ event.listen('modem_message', IDCIn)
     os.sleep(1.5)
     alert("CONNECTION HAS CLOSED", 1)
     OpenIris()
+    modem.close(985)
+    modem.close(986)
     gateRingDisplay.eventHorizon(false)
   end),
 

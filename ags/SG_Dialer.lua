@@ -7,13 +7,13 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
-local idcs = {'trc1','trc2'}
+idcs = {'trc1','trc2'}
 
 Version = "0.6.5"
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
-local modem = component.modem
+modem = component.modem
 os = require("os")
 term = require("term")
 thread = require("thread")

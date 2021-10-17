@@ -1883,9 +1883,7 @@ function checkIDC(incomingIDC)
     end
 end
 
-function iDCIn(_, _, _, _, _, idc)
-    checkIDC(idc)
-end
+
 -- End of Gate Ring Display --------------------------------------------------------
 
 -- Event Section -------------------------------------------------------------------
@@ -1937,7 +1935,9 @@ local EventListeners = {
     end
   end),
 
-  modem_message = event.listen('modem_message', iDCIn()),
+  modem_message = event.listen('modem_message', function iDCIn(_, _, _, _, _, idc)
+    checkIDC(idc)
+  end),
   
   
   stargate_open = event.listen("stargate_open", function(_, _, caller, isInitiating)

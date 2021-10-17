@@ -1875,8 +1875,8 @@ function openIris()
 end
 
 function checkIDC(incomingIDC)
-    for k,idc in idcs do
-        if tostring(incomingIDC) == idc then
+    for v in idcs do
+        if tostring(incomingIDC) == v then
             OpenIris()
             modem.broadcast(986, "Iris opening")
         end

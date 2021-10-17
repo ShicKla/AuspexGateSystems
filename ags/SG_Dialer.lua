@@ -1861,6 +1861,31 @@ function gateRingDisplay.UNreset()
   self.setChevron(sequence[pos], false)
   alert("STARGATE HAS RESET", 1)
 end
+
+  function closeIris()
+    if (sg.getIrisState() ~= "CLOSED") then
+        sg.toggleIris()
+    end
+end
+
+function openIris()
+    if (sg.getIrisState() ~= "OPENED") then
+        sg.toggleIris()
+    end
+end
+
+function checkIDC(incomingIDC)
+    for idc in idcs do
+        if incomingIDC == idc then
+            OpenIris()
+            modem.broadcast(986, "Iris opening")
+        end
+    end
+end
+
+function iDCIn(_, _, _, _, _, idc)
+    checkIDC(idc)
+end
 -- End of Gate Ring Display --------------------------------------------------------
 
 -- Event Section -------------------------------------------------------------------
@@ -1912,31 +1937,7 @@ local EventListeners = {
     end
   end),
 
-  function closeIris()
-    if (sg.getIrisState() ~= "CLOSED") then
-        sg.toggleIris()
-    end
-end
-
-function openIris()
-    if (sg.getIrisState() ~= "OPENED") then
-        sg.toggleIris()
-    end
-end
-
-function checkIDC(incomingIDC)
-    for idc in idcs do
-        if incomingIDC == idc then
-            OpenIris()
-            modem.broadcast(986, "Iris opening")
-        end
-    end
-end
-
-function iDCIn(_, _, _, _, _, idc)
-    checkIDC(idc)
-end
-event.listen('modem_message', iDCIn())
+  event.listen('modem_message', iDCIn())
   
   
   stargate_open = event.listen("stargate_open", function(_, _, caller, isInitiating)

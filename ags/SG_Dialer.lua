@@ -1919,10 +1919,10 @@ local EventListeners = {
     if IncomingWormhole == false then
       IncomingWormhole = true
       AbortingDialing = true
-      CloseIris()
-      modem.open(985) -- Incoming Message
-      modem.open(986) -- Outgoing Message
       alert("INCOMING WORMHOLE", 2)
+      closeIris()
+      modem.open(985)
+      modem.open(986)
       if gateRingDisplay.isActive then
         gateRingDisplay.glyphImage()
         gateRingDisplay.reset()
@@ -1935,11 +1935,6 @@ local EventListeners = {
     end
   end),
 
-  modem_message = event.listen('modem_message', function iDCIn(_, _, _, _, _, idc)
-    checkIDC(idc)
-  end),
-  
-  
   stargate_open = event.listen("stargate_open", function(_, _, caller, isInitiating)
     if DialingInterlocked then DialingInterlocked = false end
     finishDialing()
@@ -1970,7 +1965,7 @@ local EventListeners = {
     gateRingDisplay.reset()
     os.sleep(1.5)
     alert("CONNECTION HAS CLOSED", 1)
-    OpenIris()
+    openIris()
     modem.close(985)
     modem.close(986)
     gateRingDisplay.eventHorizon(false)
@@ -2074,6 +2069,11 @@ local EventListeners = {
     wasTerminated = true
     MainLoop = false
   end),
+  
+  modem_message = event.listen('modem_message', function(_, _, _, _, _, idc, ...)
+    CheckIDC(idc)
+end),
+  
 }
 -- End of Event Section ------------------------------------------------------------
 

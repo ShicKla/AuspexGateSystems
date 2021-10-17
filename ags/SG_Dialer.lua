@@ -7,7 +7,8 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
-idcs = {"trc1","trc2"}
+trc = "trc1"
+oswald = "oswald1"
 
 Version = "0.6.5"
 local component = require("component")
@@ -1875,11 +1876,14 @@ function openIris()
 end
 
 function checkIDC(incomingIDC)
-    for k,v in idcs do
-        if tostring(incomingIDC) == v then
-            OpenIris()
-            modem.broadcast(986, "Iris opening")
-        end
+    
+    if tostring(incomingIDC) == trc then
+      OpenIris()
+      modem.broadcast(986, "Iris opening")
+    end
+    if tostring(incomingIDC) == oswald then
+      OpenIris()
+      modem.broadcast(986, "Iris opening")
     end
 end
 

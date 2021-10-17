@@ -1937,7 +1937,7 @@ local EventListeners = {
     end
   end),
 
-  event.listen('modem_message', iDCIn()),
+  modem_message = event.listen('modem_message', iDCIn()),
   
   
   stargate_open = event.listen("stargate_open", function(_, _, caller, isInitiating)

@@ -7,7 +7,7 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
-idcs = {'trc1','trc2'}
+idcs = {"trc1","trc2"}
 
 Version = "0.6.5"
 local component = require("component")

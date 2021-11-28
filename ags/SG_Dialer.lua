@@ -1,11 +1,7 @@
 --[[
 Created By: Augur ShicKla
-<<<<<<< HEAD
-v0.6.5
-=======
 Special Thanks To: TRC & matousss
 v0.7.0
->>>>>>> unstable
 
 System Requirements:
 Tier 3.5 Memory
@@ -13,11 +9,7 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
-<<<<<<< HEAD
-Version = "0.6.5"
-=======
 Version = "0.7.0"
->>>>>>> unstable
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -92,14 +84,10 @@ RootDrive = nil
 DialedAddress = {}
 IncomingWormhole = false
 GateStatusString, GateStatusBool = nil
-<<<<<<< HEAD
-local IrisType = nil
-=======
 local freeMemoryPercent = ""
 local infoExtensionMode = nil
 local IrisType = nil
 local IrisMetaType = nil
->>>>>>> unstable
 local DatabaseWriteTimer = nil
 local IDC = nil
 local AutoCloseIris = false
@@ -779,81 +767,6 @@ local function displayInfoCenter()
   infoExtensionSwitch("ADDRESS")
 end
 
-<<<<<<< HEAD
-function displaySystemStatus()
-  local xPos = 2
-  local yPos = 45
-  local energyStored = 0
-  local energyMax = 0
-  local capCount = 0
-  local irisState = nil
-  local status, err = pcall(function()
-    energyStored = sg.getEnergyStored()
-    energyMax = sg.getMaxEnergyStored()
-    capCount = sg.getCapacitorsInstalled()  
-  end)
-  if status == false then
-    ErrorMessage = "Stargate Has Been Disconnected"
-    HadNoError = false
-    MainLoop = false
-  end
-  pcall(function() 
-    irisState = sg.getIrisState()
-  end)
-  local freeMemory = computer.freeMemory()
-  local totalComputerMemory = computer.totalMemory()
-  gpu.set(17, term.window.height-6, "╡")
-  gpu.set(29, term.window.height-6, "╞")
-  gpu.setForeground(0x000000)
-  if GateStatusString == "open" then
-    gpu.setBackground(0xFFFF00)
-    gpu.set(18, term.window.height-6, " GATE OPEN ")
-  else
-    gpu.setBackground(0x00FF00)
-    gpu.set(18, term.window.height-6, "GATE CLOSED")
-  end
-  gpu.setForeground(0xFFFFFF)
-  gpu.setBackground(0x000000)
-  gpu.set(30, term.window.height-6, "═════════════")
-  if IrisType ~= nil and IrisType ~= "NULL" then
-    if IrisType == "SHIELD" then
-      gpu.set(30, term.window.height-6, "╡░░░░░░░░░░╞")
-      if irisState == "OPENED" then
-        if GateStatusString == "open" and GateStatusBool == false then
-          gpu.setForeground(0x000000)
-          gpu.setBackground(0xFFFF00)
-        end
-        gpu.set(31, term.window.height-6, "SHIELD OFF")
-      elseif irisState == "CLOSED" then
-        gpu.set(31, term.window.height-6, "SHIELD ON ")
-      end
-    else
-      gpu.set(30, term.window.height-6, "╡░░░░░░░░░░░╞")
-      if irisState == "OPENED" then
-        if GateStatusString == "open" and GateStatusBool == false then
-          gpu.setForeground(0x000000)
-          gpu.setBackground(0xFFFF00)
-        end
-        gpu.set(31, term.window.height-6, " IRIS OPEN ")
-      elseif irisState == "CLOSED" then
-        gpu.set(31, term.window.height-6, "IRIS CLOSED")
-      end
-    end
-    gpu.setForeground(0xFFFFFF)
-    gpu.setBackground(0x000000)
-  end
-  gpu.fill(xPos, yPos, 44, 4, " ")
-  gpu.set(xPos+1, yPos, "Energy Level: "..energyStored.."/"..energyMax.." RF "..math.floor((energyStored/energyMax)*100).."%")
-  gpu.set(xPos+1, yPos+1, "Capacitors Installed: "..capCount.."/3")
-  gpu.set(xPos+1, yPos+2, "Computer Memory Remaining: "..math.floor((freeMemory/totalComputerMemory)*100).."%")
-  -- if IrisType == nil or IrisType == "NULL" then
-    -- gpu.set(xPos+1, yPos+2, "Computer Memory Remaining: "..math.floor((freeMemory/totalComputerMemory)*100).."%")
-  -- else
-    -- gpu.set(xPos+1, yPos+2, "Iris Durability: "..sg.getIrisDurability())
-    -- gpu.set(xPos+1, yPos+3, "Computer Memory Remaining: "..math.floor((freeMemory/totalComputerMemory)*100).."%")
-  -- end
-end
-=======
 ChildThread.statusThread = thread.create(function()
   HadNoError, ErrorMessage = xpcall(function()
     while HadNoError do
@@ -862,7 +775,6 @@ ChildThread.statusThread = thread.create(function()
     end
   end, debug.traceback)
 end)
->>>>>>> unstable
 
 ChildThread.debugWindowThread = thread.create(function() -- For Debug
   HadNoError, ErrorMessage = xpcall(function()
@@ -1005,10 +917,6 @@ function GateEntriesWindow.update()
     gpu.setBackground(0x000000)
     gpu.set(31, 2,  "History")
     self.loadedEntries = gateEntries
-<<<<<<< HEAD
-    -- ClearHistoryButton:hide()
-=======
->>>>>>> unstable
     self.clearHistoryButton:hide()
     gpu.set(13, 40, "═══════════════")
   elseif self.mode == "history" then
@@ -1020,10 +928,6 @@ function GateEntriesWindow.update()
       self.clearHistoryButton:display()
       gpu.set(13, 40, "╡░░░░░░░░░░░░░╞")
       self.clearHistoryButton:display()
-<<<<<<< HEAD
-      -- ClearHistoryButton:display()
-=======
->>>>>>> unstable
     else
       self.clearHistoryButton:hide()
       gpu.set(13, 40, "═══════════════")
@@ -1064,10 +968,6 @@ function GateEntriesWindow.update()
     table.insert(self.canDial, dialable)
   end
   if #self.entryStrings > self.range.height then
-<<<<<<< HEAD
-    -- gpu.set(1, 40, "╚═╡░░░░░░╞═══════════════════╡░░░░░░╞═╝")
-=======
->>>>>>> unstable
     gpu.set(3, 40, "╡░░░░░░╞")
     gpu.set(30, 40, "╡░░░░░░╞")
     self.scrollUpButton:display()
@@ -1075,10 +975,6 @@ function GateEntriesWindow.update()
   else
     self.scrollUpButton:hide()
     self.scrollDnButton:hide()
-<<<<<<< HEAD
-    -- gpu.fill(2, 40, 37, 1, "═")
-=======
->>>>>>> unstable
     gpu.set(3, 40, "════════")
     gpu.set(30, 40, "════════")
   end
@@ -2352,8 +2248,6 @@ local EventListeners = {
       sg.disengageGate()
       dialerAdrEntryMode = false
     end
-<<<<<<< HEAD
-=======
     if isInitiating and OutgoingIDC ~= nil then
       event.timer(2, function()
         alert("Sending IDC",1)
@@ -2361,7 +2255,6 @@ local EventListeners = {
         sg.sendIrisCode(OutgoingIDC)
       end)
     end
->>>>>>> unstable
   end),
 
   stargate_close = event.listen("stargate_close", function(_, _, caller, reason)
@@ -2487,10 +2380,7 @@ local EventListeners = {
   end),
 
   touch = event.listen("touch", function(_, screenAddress, x, y, button, playerName)
-<<<<<<< HEAD
-=======
     term.setCursor(0,0)
->>>>>>> unstable
     if DebugMode then
       gpu.fill(150, 43, 10, 1, " ") -- For Debug
       gpu.set(150, 43, x..", "..y)  -- For Debug
@@ -2618,16 +2508,9 @@ end)
 IrisToggleButton = Button.new(28, 41, 0, 0, " ", function()
   sg.toggleIris()
 end)
-<<<<<<< HEAD
--- ClearHistoryButton = Button.new(28, 41, 0, 0, "Clear History", function()
-  -- historyEntries = {}
-  -- writeToDatabase()
-  -- ClearHistoryButton:hide()
-=======
 -- IDCButton = Button.new(126, 41, 0, 0, "IDC", function()
   -- alert("Sending IDC: "..tostring(OutgoingIDC), 1)
   -- sg.sendIrisCode(OutgoingIDC)
->>>>>>> unstable
 -- end)
 
 
@@ -2705,37 +2588,6 @@ end, debug.traceback)
 
 -- Creating Threads ----------------------------------------------------------------
 
-<<<<<<< HEAD
-  gateStatusThread = thread.create(function()
-    CloseGateButton:display()
-    while HadNoError do
-      HadNoError, ErrorMessage = xpcall(function()
-        GateStatusString = nil
-        GateStatusBool = nil
-        pcall(function() GateStatusString, GateStatusBool = sg.getGateStatus() end)
-        if GateStatusBool ~= nil and GateStatusBool == true then
-          OutgoingWormhole = true
-          if CloseGateButton.disabled then
-            CloseGateButton:disable(false)
-          end
-        elseif not CloseGateButton.disabled then
-          CloseGateButton:disable(true)
-        end
-        if GateStatusString == "dialing" and not UNGateResetting and not DialingInterlocked then
-          DialingInterlocked = true
-          if sg.dialedAddress == "[]" then glyphListWindow.reset() end
-        end
-        if DialingInterlocked or ComputerDialingInterlocked then
-          if not UNGateResetting and not IncomingWormhole then
-            DialedAddress = parseAddressString(sg.dialedAddress, GateType)
-            gateRingDisplay.dialedChevrons(#DialedAddress)
-            if buttons.glyphResetButton.visible then buttons.glyphResetButton:hide() end
-            if not glyphListWindow.locked then glyphListWindow.locked = true end
-            if GateStatusString == "dialing" and GateType == "UN" then
-              glyphListWindow.showAddress()
-            end
-          end
-=======
 
 ChildThread.gateStatusThread = thread.create(function()
   CloseGateButton:display()
@@ -2748,7 +2600,6 @@ ChildThread.gateStatusThread = thread.create(function()
         OutgoingWormhole = true
         if CloseGateButton.disabled then
           CloseGateButton:disable(false)
->>>>>>> unstable
         end
       elseif not CloseGateButton.disabled then
         CloseGateButton:disable(true)
@@ -2767,67 +2618,12 @@ ChildThread.gateStatusThread = thread.create(function()
             glyphListWindow.showAddress()
           end
         end
-<<<<<<< HEAD
-        if GateStatusString == "dialing" and ComputerDialingInterlocked and not AbortingDialing then abortDialing() end
-        os.sleep(0.1)
-      end, debug.traceback)
-      pcall(function()
-        IrisType = sg.getIrisType()
-      end)
-      if IrisType == nil or IrisType == "NULL" then
-        IrisToggleButton:hide()
-      else
-        local labelString = nil
-        if IrisType == "SHIELD" then
-          labelString = "Toggle Shield"
-        else
-          labelString = "Toggle Iris"
-        end
-        if not IrisToggleButton.visible or labelString ~= IrisToggleButton.label then
-          IrisToggleButton:hide()
-          IrisToggleButton.label = labelString
-          IrisToggleButton.width = 1
-          IrisToggleButton:display()
-        end
-      end
-    os.sleep(0.1)
-    end
-  end),
-  
-  debugWindowThread = thread.create(function() -- For Debug
-    HadNoError, ErrorMessage = xpcall(function()
-      while HadNoError do
-        local used = RootDrive.spaceUsed()
-        local total = RootDrive.spaceTotal()
-        local dialedAddress = nil
-        pcall(function() dialedAddress = sg.dialedAddress end)
-        gpu.fill(3, 48, 40, 1, " ")
-        if DebugMode then
-          gpu.fill(48, 45, 110, 4, " ")
-          gpu.set(48, 45, "DHD_AdrEntryMode: "..tostring(DHD_AdrEntryMode))
-          gpu.set(48, 46, "DialingInterlocked: "..tostring(DialingInterlocked))
-          gpu.set(48, 47, "ComputerDialingInterlocked: "..tostring(ComputerDialingInterlocked))
-          gpu.set(84, 46, "dialerAdrEntryMode: "..tostring(dialerAdrEntryMode))
-          gpu.set(84, 45, "glyphListWindow.locked: "..tostring(glyphListWindow.locked))
-          gpu.set(48, 48, tostring(dialedAddress))
-          gpu.set(84, 47, "Gate Status: "..tostring(GateStatusString).." | "..tostring(GateStatusBool))
-          -- gpu.set(120, 45, "Drive Usage: "..used.."/"..total.." "..math.floor((used/total)*100).."%")
-          -- gpu.set(120, 45, "Index: "..tostring(GateEntriesWindow.selectedIndex))
-          gpu.set(120, 45, "UNGateResetting: "..tostring(UNGateResetting))
-          -- gpu.set(120, 46, "manualAdrEntryMode: "..tostring(manualAdrEntryMode))
-          -- gpu.set(120, 46, "editGateEntryMode: "..tostring(editGateEntryMode))
-          -- gpu.set(120, 47, "DatabaseWriteTimer ID: "..tostring(DatabaseWriteTimer))
-          -- gpu.set(120, 46, "IrisState: "..tostring(sg.getIrisState()))
-          -- gpu.set(120, 47, "IrisType: "..tostring(IrisType))
-          gpu.set(120, 47, "MainLoop: "..tostring(MainLoop))
-=======
       end
       if GateStatusString == "idle" and not ComputerDialingInterlocked then
         if DialingInterlocked then DialingInterlocked = false end
         if glyphListWindow.locked then
           glyphListWindow.locked = false
           glyphListWindow.display()
->>>>>>> unstable
         end
       end
       if GateStatusString == "dialing" and ComputerDialingInterlocked and not AbortingDialing then abortDialing() end

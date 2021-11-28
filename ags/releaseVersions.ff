@@ -1,21 +1,5 @@
 {
     dialer={
-<<<<<<< HEAD
-        ver = "0.6.5",
-        file = "SG_Dialer.lua",
-        note = {"0.6.5:",
-                " Fixed bug where computer would start dialing a Pegasus Gate on its own",
-                " Fixed bug when editing of existing gate entry addresses",
-                " Added ability to add an address with Pegasus DHD",
-                " Added basic iris and shield control",
-                " Updated Pegasus glyph images",
-                "0.6.4:",
-                " Added Dialing History",
-                " Added ability to tag favorite address entries",
-                " Added ability to move the position of address entries",
-                "0.6.3:",
-                " Added support for Pegasus Stargates"},
-=======
         ver = "0.7.0",
         file = "SG_Dialer.lua",
         note = {"0.7.0: IDC Update",
@@ -28,7 +12,6 @@
                 " Changes to the UI when editing a Gate Entry.",
                 " Various minor performance tweaks."
                 },
->>>>>>> unstable
         manifest = {"/ags/SG_Dialer.lua",
                     "/ags/gateRing.ff",
                     "/ags/glyphsMW.ff",

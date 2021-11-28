@@ -1,5 +1,6 @@
 {
     dialer={
+<<<<<<< HEAD
         ver = "0.6.5",
         file = "SG_Dialer.lua",
         note = {"0.6.5:",
@@ -14,6 +15,20 @@
                 " Added ability to move the position of address entries",
                 "0.6.3:",
                 " Added support for Pegasus Stargates"},
+=======
+        ver = "0.7.0",
+        file = "SG_Dialer.lua",
+        note = {"0.7.0: IDC Update",
+                " Added IDC functionality. You can now assign an IDC to your gate,",
+                "  as well as set whether the Iris/Shield should auto close. IDC can also",
+                "  be received by network messages. These options can be changed in the",
+                "  settings menu.",
+                " Added 'Settings' menu tab, located next the the 'This Stargate's Addresses'.",
+                " Gate Entries can be given an IDC, and will auto send their IDC when dialing.",
+                " Changes to the UI when editing a Gate Entry.",
+                " Various minor performance tweaks."
+                },
+>>>>>>> unstable
         manifest = {"/ags/SG_Dialer.lua",
                     "/ags/gateRing.ff",
                     "/ags/glyphsMW.ff",

@@ -1,6 +1,11 @@
 --[[
 Created By: Augur ShicKla
+<<<<<<< HEAD
 v0.6.5
+=======
+Special Thanks To: TRC & matousss
+v0.7.0
+>>>>>>> unstable
 
 System Requirements:
 Tier 3.5 Memory
@@ -8,7 +13,11 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
+<<<<<<< HEAD
 Version = "0.6.5"
+=======
+Version = "0.7.0"
+>>>>>>> unstable
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -19,8 +28,8 @@ serialization = require("serialization")
 unicode = require("unicode")
 filesystem = require("filesystem")
 screen = component.screen
-gpu = component.gpu
-
+local gpu = component.gpu
+local modem = {}
 
 -- Checking System Requirements are Met --------------------------------------------
 if gpu.maxResolution() ~= 160 then
@@ -46,18 +55,17 @@ end
 -- End of Checking System Requirements ---------------------------------------------
 
 -- Declarations --------------------------------------------------------------------
-sg = component.stargate
+local sg = component.stargate
 
 GlyphsMW = {"Andromeda","Aquarius","Aries","Auriga","Bootes","Cancer","Canis Minor","Capricornus","Centaurus","Cetus","Corona Australis","Crater","Equuleus","Eridanus","Gemini","Hydra","Leo","Leo Minor","Libra","Lynx","Microscopium","Monoceros","Norma","Orion","Pegasus","Perseus","Pisces","Piscis Austrinus","Sagittarius","Scorpius","Sculptor","Scutum","Serpens Caput","Sextans","Taurus","Triangulum","Virgo"}
 GlyphsPG = {"Aaxel","Abrin","Acjesis","Aldeni","Alura","Amiwill","Arami","Avoniv","Baselai","Bydo","Ca Po","Danami","Dawnre","Ecrumig","Elenami","Gilltin","Hacemill","Hamlinto","Illume","Laylox","Lenchan","Olavii","Once El","Poco Re","Ramnon","Recktic","Robandus","Roehi","Salma","Sandovi","Setas","Sibbron","Tahnan","Zamilloz","Zeo"}
--- GlyphsPG = {"Aaxel","Abrin","Acjesis","Aldeni","Alura","Amiwill","Arami","Avoniv","Baselai","Bydo","Ca Po","Danami","Dawnre","Ecrumig","Elenami","Gilltin","Hacemill","Hamlinto","Illume","Laylox","Lenchan","Olavii","Once El","Poco Re","Ramnon","Recktic","Robandus","Roehi","Salma","Sandovi","Setas","Sibbron","Subido","Tahnan","Zamilloz","Zeo"}
-
 
 GateType = ""
 GateTypeName = ""
 ConnectionErrorString = "Communication error with Stargate. Please disconnect and reconnect.\nIf problem persists verify AUNIS 1.9.6 or greater is installed, and replace Stargate base block."
 local DatabaseFile = "gateEntries.ff"
 local DatabaseFileBackup = "gateEntries.bak"
+local configFile = "dialer.cfg"
 gateEntries = {}
 historyEntries = {}
 AddressBuffer = {}
@@ -71,7 +79,7 @@ editGateEntryMode = false
 manualAdrEntryMode = false
 isDirectDialing = false
 AbortingDialing = false
-WasCanceled = false
+local WasCanceled = false
 wasTerminated = false
 MainLoop = true
 HadNoError = true
@@ -84,8 +92,22 @@ RootDrive = nil
 DialedAddress = {}
 IncomingWormhole = false
 GateStatusString, GateStatusBool = nil
+<<<<<<< HEAD
 local IrisType = nil
+=======
+local freeMemoryPercent = ""
+local infoExtensionMode = nil
+local IrisType = nil
+local IrisMetaType = nil
+>>>>>>> unstable
 local DatabaseWriteTimer = nil
+local IDC = nil
+local AutoCloseIris = false
+local IrisDurability = ""
+local OutgoingIDC = nil
+local ChildThread = {}
+local HasModem = false
+local ModemIDCPort = nil
 -- End of Declarations -------------------------------------------------------------
 
 -- Pre-Initialization --------------------------------------------------------------
@@ -120,7 +142,60 @@ for k,v in filesystem.mounts() do -- Searches for the filesystem that holds root
     RootDrive = k
   end
 end
+
+if component.isAvailable("modem") then
+  HasModem = true
+  modem = component.modem
+end
 -- End of Pre-Initialization -------------------------------------------------------
+
+-- Config File IO ------------------------------------------------------------------
+local function readConfig()
+  local file = io.open("dialer.cfg", "r")
+  if file == nil then return end
+  file:close()
+  if not pcall(function() dofile("dialer.cfg") end) then
+    io.stderr:write("Failed to load config file!\n")
+  end
+end
+
+function IrisConfig(options)
+  if type(options.IDC) == "number" and options.IDC >= 0 and options.IDC < 1e9 and math.floor(options.IDC) == options.IDC then
+    IDC = options.IDC
+  elseif options.IDC == nil then
+    io.stderr:write("No IDC Provided\n")
+  else
+    io.stderr:write("IDC in config file is invalid\n")
+  end
+  
+  if type(options.AutoCloseIris) == "boolean" then
+    AutoCloseIris = options.AutoCloseIris
+  else
+    io.stderr:write("AutoCloseIris in config file is invalid\n")
+  end
+  
+  if type(options.NetworkPort) == "number" and options.NetworkPort > 0 and options.NetworkPort <= 65535 and math.floor(options.NetworkPort) == options.NetworkPort then
+    ModemIDCPort = options.NetworkPort
+    if HasModem then modem.open(ModemIDCPort) end
+  elseif options.NetworkPort == nil then
+    io.stderr:write("No IDC Network Port Provided\n")
+  else
+    io.stderr:write("IDC Network Port in config file is invalid\n")
+  end  
+  
+  IrisConfig = nil
+end
+
+local function writeConfig()
+  local file = io.open("dialer.cfg", "w")
+  file:write("-- Do not edit this file directly unless you know what you are doing.\n\n")
+  file:write("IrisConfig{IDC="..tostring(IDC)..",AutoCloseIris="..tostring(AutoCloseIris)..",NetworkPort="..tostring(ModemIDCPort).."}\n")
+  file:close()
+end
+
+readConfig()
+writeConfig()
+-- Config File IO End --------------------------------------------------------------
 
 -- Button Object -------------------------------------------------------------------
 Button = {}
@@ -383,16 +458,28 @@ function parseAddressString(adrStr, adrType)
   return adrBuf
 end
 
-function userInput(x, y, maxLength)
-  for _,v in pairs(ChildThread) do v:suspend() end
+local function userInput(x, y, maxLength, touchExits)
+  local threadStates = {}
+  for _,v in pairs(ChildThread) do
+    threadStates[v] = v:status()
+    v:suspend()
+  end
+  local success = true
   local inputString = ""
   local strLength = 0
   if maxLength == nil or maxLength == 0 then maxLength = 32 end
   term.setCursor(x, y)
   term.setCursorBlink(true)
+  gpu.setBackground(0x878787)
+  gpu.fill(x, y, maxLength, 1, " ")
+  gpu.setBackground(0x000000)
   while true do
-    term.setCursorBlink(true)
+    -- term.setCursorBlink(true)
     local e, address, arg1, arg2, arg3 = term.pull()
+    if e == "touch" and touchExits then
+      success = false
+      break
+    end
     if e == "key_down" then
       if arg2 ~= 28 and arg2 ~= 14 and arg1 ~= 0 and strLength < maxLength then -- Not Enter, Backspace, or Other
         inputString = inputString..unicode.char(arg1)
@@ -401,20 +488,27 @@ function userInput(x, y, maxLength)
       elseif arg2 == 28 then -- Enter Key
         break
       end
+      strLength = unicode.len(inputString)
+      gpu.setBackground(0x878787)
+      gpu.fill(x, y, maxLength, 1, " ")
+      gpu.set(x, y, inputString)
+      gpu.setBackground(0x000000)
+      term.setCursor(x+strLength, y)
     end
-    if WasCanceled then
-      WasCanceled = false
-      inputString = ""
-      break
-    end
-    strLength = unicode.len(inputString)
-    gpu.fill(x, y, maxLength, 1, " ")
-    gpu.set(x, y, inputString)
-    term.setCursor(x+strLength, y)
+    -- if WasCanceled then
+      -- WasCanceled = false
+      -- inputString = ""
+      -- break
+    -- end
   end
-  term.setCursorBlink(false)
-  for _,v in pairs(ChildThread) do v:resume() end
-  return inputString
+  -- gpu.setBackground(0x000000)
+  -- term.setCursorBlink(false)
+  -- gpu.fill(x, y, maxLength, 1, " ")
+  for k,v in pairs(threadStates) do
+    if v == "running" then k:resume() end
+  end
+  -- alert("Input Closed", 1) -- For Debug
+  return inputString, success
 end
 
 function updateHistory()
@@ -449,7 +543,224 @@ end
 -- End of Special Functions --------------------------------------------------------
 
 -- Info Center ---------------------------------------------------------------------
-function displayInfoCenter()
+local function displaySystemStatus()
+  local xPos = 2
+  local yPos = 45
+  local energyStored = 0
+  local energyMax = 0
+  local capCount = 0
+  local irisState = nil
+  local status, err = pcall(function()
+    energyStored = sg.getEnergyStored()
+    energyMax = sg.getMaxEnergyStored()
+    capCount = sg.getCapacitorsInstalled()  
+  end)
+  if status == false then
+    ErrorMessage = "Stargate Has Been Disconnected"
+    HadNoError = false
+    MainLoop = false
+  end
+  pcall(function() 
+    irisState = sg.getIrisState()
+  end)
+  -- local freeMemory = computer.freeMemory()
+  -- local totalComputerMemory = computer.totalMemory()
+  gpu.set(17, term.window.height-6, "╡")
+  gpu.set(29, term.window.height-6, "╞")
+  gpu.setForeground(0x000000)
+  if GateStatusString == "open" then
+    gpu.setBackground(0xFFFF00)
+    gpu.set(18, term.window.height-6, " GATE OPEN ")
+  else
+    gpu.setBackground(0x00FF00)
+    gpu.set(18, term.window.height-6, "GATE CLOSED")
+  end
+  gpu.setForeground(0xFFFFFF)
+  gpu.setBackground(0x000000)
+  gpu.set(30, term.window.height-6, "═════════════")
+  if IrisType ~= nil and IrisType ~= "NULL" then
+    if IrisType == "SHIELD" then
+      gpu.set(30, term.window.height-6, "╡░░░░░░░░░░╞")
+      if irisState == "OPENED" then
+        if GateStatusString == "open" and GateStatusBool == false then
+          gpu.setForeground(0x000000)
+          gpu.setBackground(0xFFFF00)
+        end
+        gpu.set(31, term.window.height-6, "SHIELD OFF")
+      elseif irisState == "CLOSED" then
+        gpu.set(31, term.window.height-6, "SHIELD ON ")
+      end
+    else
+      gpu.set(30, term.window.height-6, "╡░░░░░░░░░░░╞")
+      if irisState == "OPENED" then
+        if GateStatusString == "open" and GateStatusBool == false then
+          gpu.setForeground(0x000000)
+          gpu.setBackground(0xFFFF00)
+        end
+        gpu.set(31, term.window.height-6, " IRIS OPEN ")
+      elseif irisState == "CLOSED" then
+        gpu.set(31, term.window.height-6, "IRIS CLOSED")
+      end
+    end
+    gpu.setForeground(0xFFFFFF)
+    gpu.setBackground(0x000000)
+  end
+  gpu.fill(xPos, yPos, 44, 4, " ")
+  gpu.set(xPos+1, yPos, "Energy Level: "..energyStored.."/"..energyMax.." RF "..math.floor((energyStored/energyMax)*100).."%")
+  gpu.set(xPos+1, yPos+1, "Capacitors Installed: "..capCount.."/3")
+  -- gpu.set(xPos+1, yPos+3, "Computer Memory Remaining: "..math.floor((freeMemory/totalComputerMemory)*100).."%")
+  gpu.set(xPos+1, yPos+3, "Computer Memory Remaining: "..freeMemoryPercent)
+  if IrisType ~= nil and IrisType ~= "NULL" then
+    gpu.set(xPos+1, yPos+2, "Iris Durability: "..IrisDurability)
+  end
+end
+
+local function displayLocalAddress()
+  gpu.set(48, 45, "Milky Way "..addressToString(localMWAddress))
+  gpu.set(48, 46, "Universe  "..addressToString(localUNAddress))
+  gpu.set(48, 47, "Pegasus   "..addressToString(localPGAddress))
+end
+
+local ConfigPage = {}
+ConfigPage.autoIrisButton = Button.new(64, 44, 0, 0, " ", function()
+  if AutoCloseIris == false then
+    AutoCloseIris = true
+  else
+    AutoCloseIris = false
+  end
+  ConfigPage.show()
+  writeConfig()
+end, false)
+
+ConfigPage.changeIDCButton = Button.new(65, 45, 0, 0, "         ", function()
+  ConfigPage.changeIDCButton:hide()
+  local newIDC, successful = userInput(66, 46, 9, true)
+  if successful then
+    if newIDC == "" then
+      alert("IDC Was Cleared", 2)
+      IDC = nil
+      writeConfig()
+    else
+      newIDC = tonumber(newIDC)
+      if type(newIDC) == "number" and newIDC >= 0 and newIDC < 1e9 and math.floor(newIDC) == newIDC then
+        alert("IDC Has Been Changed", 1)
+        IDC = newIDC
+        writeConfig()
+      else
+        alert("Invalid IDC", 2)
+      end
+    end
+  end
+  if infoExtensionMode == "CONFIG" then ConfigPage.show() end
+end, false)
+
+ConfigPage.changePortButton = Button.new(65, 46, 0, 0, "     ", function()
+  ConfigPage.changePortButton:hide()
+  local newPort, successful = userInput(66, 47, 5, true)
+  if successful then
+    if newPort == "" then
+      alert("IDC Network Port Was Closed", 2)
+      if ModemIDCPort ~= nil then modem.close(ModemIDCPort) end
+      ModemIDCPort = nil
+      writeConfig()
+    else
+      newPort = tonumber(newPort)
+      if type(newPort) == "number" and newPort > 0 and newPort <= 65535 and math.floor(newPort) == newPort then
+        alert("IDC Network Port Has Been Changed", 1)
+        if ModemIDCPort ~= nil then modem.close(ModemIDCPort) end
+        ModemIDCPort = newPort
+        modem.open(ModemIDCPort)
+        writeConfig()
+      else
+        alert("Invalid Port Number", 2)
+      end
+    end
+  end
+  if infoExtensionMode == "CONFIG" then ConfigPage.show() end
+end, false)
+
+function ConfigPage.show()
+  ConfigPage.autoIrisButton:display()
+  ConfigPage.changeIDCButton:display()
+  gpu.set(48, 45, "Auto Close Iris [ ]")
+  if AutoCloseIris == true then
+    gpu.setForeground(0x00FF00)
+    gpu.set(65, 45, "X")
+    gpu.setForeground(0xFFFFFF)
+  end
+  gpu.set(48, 46, "Iris/Shield Code:")
+  gpu.setBackground(0x878787)
+  gpu.set(66, 46, "         ")
+  if IDC ~= nil then gpu.set(66, 46, tostring(IDC)) end
+  gpu.setBackground(0x000000)
+  if HasModem then
+    ConfigPage.changePortButton:display()
+    gpu.set(48,47, "IDC Network Port:")
+    gpu.setBackground(0x878787)
+    gpu.set(66, 47, "     ")
+    if ModemIDCPort ~= nil then gpu.set(66, 47, tostring(ModemIDCPort)) end
+    gpu.setBackground(0x000000)
+  end
+end
+
+function ConfigPage.hide()
+  ConfigPage.autoIrisButton:hide()
+  ConfigPage.changeIDCButton:hide()
+end
+
+local function infoExtensionSwitch(mode)
+  if DebugMode then
+    gpu.set(47, 44, "╡This Stargate's Addresses╞═╡Settings╞═╡Debug╞")
+  else
+    gpu.set(47, 44, "╡This Stargate's Addresses╞═╡Settings╞════════")
+  end
+  gpu.fill(48, 45, 110, 4, " ")
+  ChildThread.debugWindowThread:suspend()
+  ConfigPage.hide()
+  if mode == "ADDRESS" then
+    gpu.setBackground(0x878787)
+    gpu.set(48, 44, "This Stargate's Addresses")
+    gpu.setBackground(0x000000)
+    displayLocalAddress()
+    infoExtensionMode = "ADDRESS"
+  elseif mode == "CONFIG" then
+    gpu.setBackground(0x878787)
+    gpu.set(76, 44, "Settings")
+    gpu.setBackground(0x000000)
+    infoExtensionMode = "CONFIG"
+    ConfigPage.show()
+  elseif mode == "DEBUG" then
+    gpu.setBackground(0x878787)
+    gpu.set(87, 44, "Debug")
+    gpu.setBackground(0x000000)
+    infoExtensionMode = "DEBUG"
+    ChildThread.debugWindowThread:resume()
+  end
+end
+
+local addressButton = Button.new(47, 43, 0, 0, "This Stargate's Addresses", function() infoExtensionSwitch("ADDRESS") end, false)
+local configButton = Button.new(75, 43, 0, 0, "Settings", function() infoExtensionSwitch("CONFIG") end, false)
+local debugButton = Button.new(86, 43, 0, 0, "Debug", function() infoExtensionSwitch("DEBUG") end, false)
+
+local function toggleDebugMode()
+    if not DebugMode then
+      alert("DEBUG MODE ACTIVATED", 1)
+      DebugMode = true
+      debugButton:display()
+      infoExtensionSwitch("DEBUG")
+      ChildThread.debugWindowThread:resume()
+    elseif DebugMode then
+      debugButton:hide()
+      gpu.set(86, 44, "═══════")
+      alert("DEBUG MODE DEACTIVATED", 1)
+      DebugMode = false
+      ChildThread.debugWindowThread:suspend()
+      if infoExtensionMode == "DEBUG" then infoExtensionSwitch("ADDRESS") end
+      gpu.fill(150, 43, 10, 1, " ")
+    end 
+end
+
+local function displayInfoCenter()
   gpu.setBackground(0x000000)
   gpu.fill(1, term.window.height-6, term.window.width, 1, "═")
   gpu.fill(1, term.window.height-5, 1, 4, "║")
@@ -463,9 +774,12 @@ function displayInfoCenter()
   gpu.set(1, term.window.height-1, "╚")
   gpu.set(46, term.window.height-1, "╩")
   gpu.set(term.window.width, term.window.height-1, "╝")
-  displayLocalAddress(48,term.window.height-5)
+  addressButton:display()
+  configButton:display()
+  infoExtensionSwitch("ADDRESS")
 end
 
+<<<<<<< HEAD
 function displaySystemStatus()
   local xPos = 2
   local yPos = 45
@@ -539,18 +853,52 @@ function displaySystemStatus()
     -- gpu.set(xPos+1, yPos+3, "Computer Memory Remaining: "..math.floor((freeMemory/totalComputerMemory)*100).."%")
   -- end
 end
+=======
+ChildThread.statusThread = thread.create(function()
+  HadNoError, ErrorMessage = xpcall(function()
+    while HadNoError do
+      displaySystemStatus()
+      os.sleep(0.05)
+    end
+  end, debug.traceback)
+end)
+>>>>>>> unstable
 
-function displayLocalAddress(xPos,yPos)
-  gpu.set(xPos, yPos, "Milky Way "..addressToString(localMWAddress))
-  gpu.set(xPos, yPos+1, "Universe  "..addressToString(localUNAddress))
-  gpu.set(xPos, yPos+2, "Pegasus   "..addressToString(localPGAddress))
-end
+ChildThread.debugWindowThread = thread.create(function() -- For Debug
+  HadNoError, ErrorMessage = xpcall(function()
+    while HadNoError do
+      local used = RootDrive.spaceUsed()
+      local total = RootDrive.spaceTotal()
+      local dialedAddress = nil
+      pcall(function() dialedAddress = sg.dialedAddress end)
+      if DebugMode then
+        gpu.fill(48, 45, 110, 4, " ")
+        gpu.set(48, 45, "DHD_AdrEntryMode: "..tostring(DHD_AdrEntryMode))
+        gpu.set(48, 46, "DialingInterlocked: "..tostring(DialingInterlocked))
+        gpu.set(48, 47, "ComputerDialingInterlocked: "..tostring(ComputerDialingInterlocked))
+        gpu.set(84, 46, "dialerAdrEntryMode: "..tostring(dialerAdrEntryMode))
+        gpu.set(84, 45, "glyphListWindow.locked: "..tostring(glyphListWindow.locked))
+        gpu.set(48, 48, tostring(dialedAddress))
+        gpu.set(84, 47, "Gate Status: "..tostring(GateStatusString).." | "..tostring(GateStatusBool))
+        -- gpu.set(120, 45, "Drive Usage: "..used.."/"..total.." "..math.floor((used/total)*100).."%")
+        -- gpu.set(120, 45, "Index: "..tostring(GateEntriesWindow.selectedIndex))
+        gpu.set(120, 45, "UNGateResetting: "..tostring(UNGateResetting))
+        -- gpu.set(120, 46, "manualAdrEntryMode: "..tostring(manualAdrEntryMode))
+        -- gpu.set(120, 46, "editGateEntryMode: "..tostring(editGateEntryMode))
+        -- gpu.set(120, 47, "DatabaseWriteTimer ID: "..tostring(DatabaseWriteTimer))
+        -- gpu.set(120, 46, "IrisState: "..tostring(sg.getIrisState()))
+        -- gpu.set(120, 47, "IrisType: "..tostring(IrisType))
+        gpu.set(120, 47, "MainLoop: "..tostring(MainLoop))
+      end
+      os.sleep(0.1)
+    end
+  end, debug.traceback)
+end)
 
-AlertThread = nil
 function alert(msg, lvl)
-  if AlertThread ~= nil then AlertThread:kill() end
+  if ChildThread.AlertThread ~= nil then ChildThread.AlertThread:kill() end
   if lvl >= 0 then
-    AlertThread = thread.create(function()
+    ChildThread.AlertThread = thread.create(function()
         gpu.setForeground(0x000000)
         if lvl == 0 or lvl == 1 then
           gpu.setBackground(0x00FF00)
@@ -568,6 +916,8 @@ function alert(msg, lvl)
         gpu.setForeground(0xFFFFFF)
         gpu.setBackground(0x000000)
         os.sleep(10)
+        gpu.setForeground(0xFFFFFF)
+        gpu.setBackground(0x000000)
         gpu.fill(1, 1, term.window.width, 1, " ")
         gpu.fill(1, term.window.height, term.window.width, 1, " ")
     end)
@@ -655,7 +1005,10 @@ function GateEntriesWindow.update()
     gpu.setBackground(0x000000)
     gpu.set(31, 2,  "History")
     self.loadedEntries = gateEntries
+<<<<<<< HEAD
     -- ClearHistoryButton:hide()
+=======
+>>>>>>> unstable
     self.clearHistoryButton:hide()
     gpu.set(13, 40, "═══════════════")
   elseif self.mode == "history" then
@@ -667,7 +1020,10 @@ function GateEntriesWindow.update()
       self.clearHistoryButton:display()
       gpu.set(13, 40, "╡░░░░░░░░░░░░░╞")
       self.clearHistoryButton:display()
+<<<<<<< HEAD
       -- ClearHistoryButton:display()
+=======
+>>>>>>> unstable
     else
       self.clearHistoryButton:hide()
       gpu.set(13, 40, "═══════════════")
@@ -708,7 +1064,10 @@ function GateEntriesWindow.update()
     table.insert(self.canDial, dialable)
   end
   if #self.entryStrings > self.range.height then
+<<<<<<< HEAD
     -- gpu.set(1, 40, "╚═╡░░░░░░╞═══════════════════╡░░░░░░╞═╝")
+=======
+>>>>>>> unstable
     gpu.set(3, 40, "╡░░░░░░╞")
     gpu.set(30, 40, "╡░░░░░░╞")
     self.scrollUpButton:display()
@@ -716,7 +1075,10 @@ function GateEntriesWindow.update()
   else
     self.scrollUpButton:hide()
     self.scrollDnButton:hide()
+<<<<<<< HEAD
     -- gpu.fill(2, 40, 37, 1, "═")
+=======
+>>>>>>> unstable
     gpu.set(3, 40, "════════")
     gpu.set(30, 40, "════════")
   end
@@ -1149,7 +1511,11 @@ function dialAddress(gateEntry, num)
     table.insert(AddressBuffer,"Glyph 17")
   elseif GateType == "PG" then
     table.insert(AddressBuffer,"Subido")
-  end  
+  end 
+  if gateEntry.IDC ~= nil then
+    OutgoingIDC = gateEntry.IDC
+  end
+  -- Preparing to Dial --
   clearDisplay()
   HelpButton:disable(true)
   gateRingDisplay.draw()
@@ -1272,7 +1638,10 @@ function completeAddressEntry(adrType)
     end
     gpu.set(42, 8, "Would you still like to have the address entered? [y]es/[n]o: ")
     term.setCursor(104, 8)
-    givenInput = userInput(104, 8, 1)
+    local successful = false
+    while not successful and not WasCanceled do
+      givenInput, successful = userInput(104, 8, 1, true)
+    end
     givenInput = unicode.lower(givenInput)
     if givenInput == "n" then
       alert("ADDRESS ENTRY CANCELED", 1)
@@ -1289,8 +1658,10 @@ function completeAddressEntry(adrType)
       clearDisplay()
       buttons.cancelButton:display()
       gpu.set(42, 6, "Please enter a name for the address: ")
-      -- INSERT PAUSE HERE?
-      givenInput = userInput(79, 6, 21)
+      local successful = false
+      while not successful and not WasCanceled do
+        givenInput, successful = userInput(79, 6, 21, true)
+      end
       if givenInput == "" then
         addressName = "Unknown"
       else
@@ -1322,7 +1693,11 @@ function dhdAddressEntry()
   buttons.cancelButton:display()
   glyphListWindow.reset()
   gpu.set(42, 6, "Use the DHD to dial the glyphs of the address, excluding the 'Point of Origin'.")
-  gpu.set(42, 7, "Then hit the 'Big Red Button'")
+  if GateType == "MW" then
+    gpu.set(42, 7, "Then hit the 'Big Red Button'")
+  elseif GateType == "PG" then
+    gpu.set(42, 7, "Then hit the 'Big Blue Button'")
+  end
   while DHD_AdrEntryMode do
     os.sleep(0.05)
     if WasCanceled then
@@ -1418,7 +1793,7 @@ end
 -- End of Address Entry ------------------------------------------------------------
 
 -- Edit Gate Entry -----------------------------------------------------------------
-function editGateEntry(index)
+local function editGateEntry(index)
   local gateEntry = gateEntries[index]
   if gateEntry == nil then
     alert("SELECT A GATE ENTRY TO EDIT", 2)
@@ -1429,6 +1804,7 @@ function editGateEntry(index)
   HelpButton:disable(true)
   buttons.cancelButton:display()
   buttons.renameButton:display()
+  buttons.changeEntryIDCButton:display()
   buttons.deleteButton:display()
   glyphListWindow.locked = true
   glyphListWindow.display()
@@ -1436,7 +1812,14 @@ function editGateEntry(index)
   if gateEntry.gateAddress.MW == nil then gateEntry.gateAddress["MW"] = {} end
   if gateEntry.gateAddress.UN == nil then gateEntry.gateAddress["UN"] = {} end
   if gateEntry.gateAddress.PG == nil then gateEntry.gateAddress["PG"] = {} end
-  gpu.set(42, 6, "Name: "..gateEntry.name)
+  gpu.set(42, 6, "Name:")
+  gpu.set(73, 6, "IDC:")
+  gpu.setBackground(0x878787)
+  gpu.fill(48, 6, 21, 1, " ")
+  gpu.fill(78, 6, 9, 1, " ")
+  gpu.set(48, 6, gateEntry.name)
+  if gateEntry.IDC ~= nil then gpu.set(78, 6, tostring(gateEntry.IDC)) end
+  gpu.setBackground(0x000000)
   gpu.set(41, 7, "┌────────────────┐  ┌────────────────┐  ┌────────────────┐")
   gpu.set(41, 8, "│   ░░░░░░░░░    │  │    ░░░░░░░░    │  │    ░░░░░░░     │")
   gpu.set(41, 9, "├────────────────┤  ├────────────────┤  ├────────────────┤")
@@ -1453,7 +1836,9 @@ function editGateEntry(index)
   gpu.fill(81, 10, 1, 8, "│")
   gpu.fill(98, 10, 1, 8, "│")
   gpu.set(41, 18, "└────────────────┘  └────────────────┘  └────────────────┘")
-  gpu.set(49, 19, "To change an address click on its name.")
+  -- gpu.set(49, 19, "To change an address click on its name.")
+  gpu.set(42, 19, "To change the entry Name or IDC, directly click on their")
+  gpu.set(42, 20, "text field. To change an address click on its name.")
   for i,v in ipairs(gateEntry.gateAddress.MW) do
     gpu.set(41+(9-math.floor(unicode.len(v)/2)), 9+i, v)
   end
@@ -1468,29 +1853,62 @@ function editGateEntry(index)
   if #gateEntry.gateAddress.PG == 0 then gpu.fill(82, 10, 16, 8, "░") end
 end
 
-function renameGateEntry(index)
+local function renameGateEntry(index)
   buttons.deleteButton:disable(true)
-  local newName = ""
   local oldName = gateEntries[index].name
-  gpu.fill(48, 6, 20, 1, " ")
-  newName = userInput(48, 6, 21)
-  if newName ~= "" then
-    gateEntries[index].name = newName
-    alert("\""..oldName.."\" HAS BEEN RENAMED TO \""..gateEntries[index].name.."\"", 1)
-    gpu.set(48, 6, gateEntries[index].name)
-    writeToDatabase()
+  local newName, successful = userInput(48, 6, 21, true)
+  if successful then
+    if newName ~= "" then
+      gateEntries[index].name = newName
+      alert("\""..oldName.."\" HAS BEEN RENAMED TO \""..gateEntries[index].name.."\"", 1)
+      writeToDatabase()
+    end
   end
   buttons.deleteButton:disable(false)
+  if editGateEntryMode then
+    gpu.setBackground(0x878787)
+    gpu.fill(48, 6, 21, 1, " ")
+    gpu.set(48, 6, gateEntries[index].name)
+    gpu.setBackground(0x000000)
+  end
 end
 
-function deleteGateEntry(value)
+local function changeEntryIDC(index)
+  buttons.deleteButton:disable(true)
+  local newIDC, successful = userInput(78, 6, 9, true)
+  if successful then
+    if newIDC == "" then
+      alert("IDC Was Cleared", 2)
+      gateEntries[index].IDC = nil
+      writeToDatabase()
+    else
+      newIDC = tonumber(newIDC)
+      if type(newIDC) == "number" and newIDC >= 0 and newIDC < 1e9 and math.floor(newIDC) == newIDC then
+        alert("IDC Has Been Changed", 1)
+        gateEntries[index].IDC = newIDC
+        writeToDatabase()
+      else
+        alert("Invalid IDC", 2)
+      end
+    end
+  end
+  buttons.deleteButton:disable(false)
+  if editGateEntryMode then
+    gpu.setBackground(0x878787)
+    gpu.fill(78, 6, 9, 1, " ")
+    if gateEntries[index].IDC ~= nil then gpu.set(78, 6, tostring(gateEntries[index].IDC)) end
+    gpu.setBackground(0x000000)
+  end
+end
+
+local function deleteGateEntry(value)
   buttons.renameButton:disable(true)
   if value == 0 then
-    gpu.set(59, 23, "┬─────┬")
-    gpu.set(59, 24, "│     │")
-    gpu.set(59, 25, "├─────┤")
-    gpu.set(59, 26, "│     │")
-    gpu.set(59, 27, "└─────┘")
+    gpu.set(44, 23, "┬─────┬")
+    gpu.set(44, 24, "│     │")
+    gpu.set(44, 25, "├─────┤")
+    gpu.set(44, 26, "│     │")
+    gpu.set(44, 27, "└─────┘")
     buttons.deleteYesButton:display()
     buttons.deleteNoButton:display()
   elseif value == 1 then
@@ -1503,11 +1921,11 @@ function deleteGateEntry(value)
     buttons.renameButton:disable(false)
     mainInterface()
   elseif value == -1 then
-    gpu.fill(59, 23, 7, 5, " ")
-    gpu.set(59, 23, "───────")
+    gpu.fill(44, 23, 7, 5, " ")
+    gpu.set(44, 23, "───────")
     buttons.deleteYesButton:hide()
     buttons.deleteNoButton:hide()
-    alert("DELETE CANCELED", 1)
+    -- alert("DELETE CANCELED", 1) -- For Debug
     buttons.renameButton:disable(false)
   end
 end
@@ -1546,8 +1964,11 @@ function gateRingDisplay.initialize()
   self.dot2Tbl = {"⣠⣾⣿⣷⣄", "⢿⣿⣿⣿⡿", "⠙⠛⠋"}
   if GateType == "MW" then
     self.offColor = 0x662400
+    -- self.offColor = 0x662400
     self.onColor = 0x994900
-    self.ringColor = 0x4B4B4B
+    self.ringColor = 0x5A5A5A
+    -- self.ringColor = 0x696969
+    -- self.ringColor = 0x4B4B4B
     self.horizonColor = 0x006DFF
   elseif GateType == "UN" then
     self.offColor = 0xA5A5A5
@@ -1555,9 +1976,12 @@ function gateRingDisplay.initialize()
     self.ringColor = 0x1E1E1E
     self.horizonColor = 0x787878
   elseif GateType == "PG" then
-    self.offColor = 0x4B4B4B
+    -- self.offColor = 0x4B4B4B
+    self.offColor = 0x000040
     self.onColor = 0x0092FF
-    self.ringColor = 0x696969
+    -- self.ringColor = 0x5A5A5A
+    self.ringColor = 0x4B4B4B
+    -- self.ringColor = 0x696969
     self.horizonColor = 0x006DFF
   else
     self.offColor = 0xA5A5A5
@@ -1891,6 +2315,9 @@ local EventListeners = {
   
   stargate_incoming_wormhole = event.listen("stargate_incoming_wormhole", function(_, _, caller, dialedAddressSize)
     AddressBuffer = {}
+    if IDC ~= nil and AutoCloseIris == true and sg.getIrisState() == "OPENED" then
+      sg.toggleIris()
+    end
     if IncomingWormhole == false then
       IncomingWormhole = true
       AbortingDialing = true
@@ -1925,6 +2352,16 @@ local EventListeners = {
       sg.disengageGate()
       dialerAdrEntryMode = false
     end
+<<<<<<< HEAD
+=======
+    if isInitiating and OutgoingIDC ~= nil then
+      event.timer(2, function()
+        alert("Sending IDC",1)
+        os.sleep(1)
+        sg.sendIrisCode(OutgoingIDC)
+      end)
+    end
+>>>>>>> unstable
   end),
 
   stargate_close = event.listen("stargate_close", function(_, _, caller, reason)
@@ -1947,6 +2384,9 @@ local EventListeners = {
       UNGateResetting = false
     end
     updateButtons()
+    if sg.getIrisState() == "CLOSED" then
+      sg.toggleIris()
+    end
   end),
 
   stargate_failed = event.listen("stargate_failed", function(_, _, caller, reason)
@@ -1979,6 +2419,48 @@ local EventListeners = {
     end
   end),
 
+  modem_message = event.listen("modem_message", function(_, _, sender, port, _, msg)
+    if port == ModemIDCPort and tonumber(msg) ~= nil then
+      local code = tonumber(msg)
+      if IDC == code then
+        if sg.getIrisState() == "CLOSED" then
+          sg.toggleIris()
+          modem.send(sender, ModemIDCPort, "IDC Accepted!")
+        else
+          if IrisType == "SHIELD" then
+            modem.send(sender, ModemIDCPort, "Shield is Off!")
+          else
+            modem.send(sender, ModemIDCPort, "Iris is Open!")
+          end
+        end
+      elseif IDC ~= code and sg.getIrisState() == "CLOSED" then
+        modem.send(sender, ModemIDCPort, "IDC is Incorrect!")
+      end
+    end
+  end),
+  
+  received_code = event.listen("received_code", function(_, _, _, code)
+    if IDC == code then
+      if sg.getIrisState() == "CLOSED" then
+        sg.toggleIris()
+        sg.sendMessageToIncoming("IDC Accepted!")
+      else
+        if IrisType == "SHIELD" then
+          sg.sendMessageToIncoming("Shield is Off!")
+        else
+          sg.sendMessageToIncoming("Iris is Open!")
+        end
+      end
+    elseif IDC ~= code and sg.getIrisState() == "CLOSED" then
+      sg.sendMessageToIncoming("IDC is Incorrect!")
+    end
+  end),
+
+  code_respond = event.listen("code_respond", function(_, _, caller, msg)
+    msg = string.sub(msg, 1, -3)
+    alert(msg, 2)
+  end),
+
   key_down = event.listen("key_down", function(_, keyboardAddress, chr, code, playerName)
     table.insert(keyCombo, code)
     if #keyCombo > 1 and (keyCombo[1] == 29 and keyCombo[2] == 16) then -- Ctrl+Q to Completely Exit
@@ -2005,6 +2487,10 @@ local EventListeners = {
   end),
 
   touch = event.listen("touch", function(_, screenAddress, x, y, button, playerName)
+<<<<<<< HEAD
+=======
+    term.setCursor(0,0)
+>>>>>>> unstable
     if DebugMode then
       gpu.fill(150, 43, 10, 1, " ") -- For Debug
       gpu.set(150, 43, x..", "..y)  -- For Debug
@@ -2053,16 +2539,19 @@ buttons = {
   editButton = Button.new(64, 2, 0, 3, "Edit Entry", function()
       editGateEntry(GateEntriesWindow.selectedIndex)
   end),
-  renameButton = Button.new(41, 21, 0, 3, "Rename Entry", function()
+  renameButton = Button.new(47, 5, 23, 3, "", function()
     renameGateEntry(GateEntriesWindow.selectedIndex)
-  end),
-  deleteButton = Button.new(56, 21, 0, 3, "Delete Entry", function()
+  end, false),
+  changeEntryIDCButton = Button.new(77, 5, 11, 3, "", function()
+    changeEntryIDC(GateEntriesWindow.selectedIndex)
+  end, false),
+  deleteButton = Button.new(41, 21, 0, 3, "Delete Entry", function() --56
     deleteGateEntry(0)
   end),
-  deleteYesButton = Button.new(59, 23, 0, 3, " Yes ", function()
+  deleteYesButton = Button.new(44, 23, 0, 3, " Yes ", function()
     deleteGateEntry(1)
   end, false),
-  deleteNoButton = Button.new(59, 25, 0, 3, " No  ", function()
+  deleteNoButton = Button.new(44, 25, 0, 3, " No  ", function()
     deleteGateEntry(-1)
   end, false),
   addEntryButton = Button.new(52, 2, 0, 3, "Add Entry", function()
@@ -2129,10 +2618,16 @@ end)
 IrisToggleButton = Button.new(28, 41, 0, 0, " ", function()
   sg.toggleIris()
 end)
+<<<<<<< HEAD
 -- ClearHistoryButton = Button.new(28, 41, 0, 0, "Clear History", function()
   -- historyEntries = {}
   -- writeToDatabase()
   -- ClearHistoryButton:hide()
+=======
+-- IDCButton = Button.new(126, 41, 0, 0, "IDC", function()
+  -- alert("Sending IDC: "..tostring(OutgoingIDC), 1)
+  -- sg.sendIrisCode(OutgoingIDC)
+>>>>>>> unstable
 -- end)
 
 
@@ -2199,26 +2694,6 @@ function HelpWindow.toggle()
 end
 -- End of Help Window --------------------------------------------------------------
 
--- Toggle Debug Mode ---------------------------------------------------------------
-function toggleDebugMode()
-    if not DebugMode then
-      alert("DEBUG MODE ACTIVATED", 1)
-      DebugMode = true
-      ChildThread.debugWindowThread:resume()
-      gpu.set(47, 44, "╡Debug Info╞═══════════════")
-    elseif DebugMode then
-      alert("DEBUG MODE DEACTIVATED", 1)
-      DebugMode = false
-      ChildThread.debugWindowThread:suspend()
-      os.sleep()
-      gpu.fill(150, 43, 10, 1, " ")
-      gpu.fill(48, 45, 110, 4, " ")
-      gpu.set(47, 44, "╡This Stargate's Addresses╞")
-      displayLocalAddress(48,term.window.height-5)
-    end 
-end
--- End of Toggle Debug Mode --------------------------------------------------------
-
 HadNoError, ErrorMessage = xpcall(function()
   localMWAddress = sg.stargateAddress.MILKYWAY
   localUNAddress = sg.stargateAddress.UNIVERSE
@@ -2229,17 +2704,8 @@ HadNoError, ErrorMessage = xpcall(function()
 end, debug.traceback)
 
 -- Creating Threads ----------------------------------------------------------------
-ChildThread = {
-  statusThread = thread.create(function()
-    HadNoError, ErrorMessage = xpcall(function()
-      displayInfoCenter()
-      while HadNoError do
-        displaySystemStatus()
-        os.sleep(0.1)
-      end
-    end, debug.traceback)
-  end),
 
+<<<<<<< HEAD
   gateStatusThread = thread.create(function()
     CloseGateButton:display()
     while HadNoError do
@@ -2269,14 +2735,39 @@ ChildThread = {
               glyphListWindow.showAddress()
             end
           end
+=======
+
+ChildThread.gateStatusThread = thread.create(function()
+  CloseGateButton:display()
+  while HadNoError do
+    HadNoError, ErrorMessage = xpcall(function()
+      GateStatusString = nil
+      GateStatusBool = nil
+      pcall(function() GateStatusString, GateStatusBool = sg.getGateStatus() end)
+      if GateStatusBool ~= nil and GateStatusBool == true then
+        OutgoingWormhole = true
+        if CloseGateButton.disabled then
+          CloseGateButton:disable(false)
+>>>>>>> unstable
         end
-        if GateStatusString == "idle" and not ComputerDialingInterlocked then
-          if DialingInterlocked then DialingInterlocked = false end
-          if glyphListWindow.locked then
-            glyphListWindow.locked = false
-            glyphListWindow.display()
+      elseif not CloseGateButton.disabled then
+        CloseGateButton:disable(true)
+      end
+      if GateStatusString == "dialing" and not UNGateResetting and not DialingInterlocked then
+        DialingInterlocked = true
+        if sg.dialedAddress == "[]" then glyphListWindow.reset() end
+      end
+      if DialingInterlocked or ComputerDialingInterlocked then
+        if not UNGateResetting and not IncomingWormhole then
+          DialedAddress = parseAddressString(sg.dialedAddress, GateType)
+          gateRingDisplay.dialedChevrons(#DialedAddress)
+          if buttons.glyphResetButton.visible then buttons.glyphResetButton:hide() end
+          if not glyphListWindow.locked then glyphListWindow.locked = true end
+          if GateStatusString == "dialing" and GateType == "UN" then
+            glyphListWindow.showAddress()
           end
         end
+<<<<<<< HEAD
         if GateStatusString == "dialing" and ComputerDialingInterlocked and not AbortingDialing then abortDialing() end
         os.sleep(0.1)
       end, debug.traceback)
@@ -2329,19 +2820,46 @@ ChildThread = {
           -- gpu.set(120, 46, "IrisState: "..tostring(sg.getIrisState()))
           -- gpu.set(120, 47, "IrisType: "..tostring(IrisType))
           gpu.set(120, 47, "MainLoop: "..tostring(MainLoop))
-        end
-        os.sleep(0.1)
+=======
       end
+      if GateStatusString == "idle" and not ComputerDialingInterlocked then
+        if DialingInterlocked then DialingInterlocked = false end
+        if glyphListWindow.locked then
+          glyphListWindow.locked = false
+          glyphListWindow.display()
+>>>>>>> unstable
+        end
+      end
+      if GateStatusString == "dialing" and ComputerDialingInterlocked and not AbortingDialing then abortDialing() end
+      os.sleep(0.1)
     end, debug.traceback)
-  end)
-}
-
-local EventThread = thread.create(function()
-  -- local e
-  -- while HadNoError do
-    -- e = {event.pull()}
-  -- end
+    pcall(function()
+      IrisType = sg.getIrisType()
+    end)
+    if IrisType == nil or IrisType == "NULL" then
+      IrisToggleButton:hide()
+    else
+      local labelString = nil
+      if IrisType == "SHIELD" then
+        labelString = "Toggle Shield"
+        IrisDurability = "∞ Shield ∞"
+      else
+        labelString = "Toggle Iris"
+        IrisDurability = sg.getIrisDurability()
+      end
+      if not IrisToggleButton.visible or labelString ~= IrisToggleButton.label then
+        IrisToggleButton:hide()
+        IrisToggleButton.label = labelString
+        IrisToggleButton.width = 1
+        IrisToggleButton:display()
+      end
+    end
+    freeMemoryPercent = tostring(math.floor((computer.freeMemory()/computer.totalMemory())*100)).."%"
+  os.sleep(0.05)
+  end
 end)
+  
+
 -- End of Thread Creation ----------------------------------------------------------
 
 function mainInterface(shouldClear)
@@ -2358,6 +2876,7 @@ function mainInterface(shouldClear)
   if HelpButton.disabled then HelpButton:disable(false) end
 end
 
+-- Initialization ------------------------------------------------------------------
 HadNoError, ErrorMessage = xpcall(function()
   ChildThread.debugWindowThread:suspend()
   QuitButton:display()
@@ -2372,12 +2891,16 @@ HadNoError, ErrorMessage = xpcall(function()
     for i in ipairs(DialedAddress) do gateRingDisplay.dialedChevrons(i, true) end
   end
   mainInterface()
+  displayInfoCenter()
 end, debug.traceback)
+-- Initialization End --------------------------------------------------------------
+
+-- Main Loop -----------------------------------------------------------------------
 while MainLoop and HadNoError do os.sleep(0.05) end
+-- Main Loop End -------------------------------------------------------------------
 
 -- Closing Procedures --------------------------------------------------------------
 term.clear()
-EventThread:kill()
 for k,v in pairs(ChildThread) do
   if (wasTerminated or not HadNoError) and v:status() == "dead" then
     print(k..": dead already")
@@ -2386,7 +2909,7 @@ for k,v in pairs(ChildThread) do
     if wasTerminated or not HadNoError then print(k..": "..v:status()) end -- For Debug
   end
 end
-if AlertThread ~= nil then AlertThread:kill() end
+
 for k,v in pairs(EventListeners) do
   if wasTerminated or not HadNoError then print("Canceling Event Listener: "..k) end -- For Debug
   event.cancel(v)
@@ -2396,6 +2919,7 @@ if wasTerminated or not HadNoError then
 else
   print("Dialer Program Closed")
 end
+if HasModem and ModemIDCPort ~= nil then modem.close(ModemIDCPort) end
 if not HadNoError then io.stderr:write(ErrorMessage) end
 screen.setTouchModeInverted(false)
 if not term.getCursorBlink() then term.setCursorBlink(true) end

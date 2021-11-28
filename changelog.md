@@ -5,6 +5,7 @@
 * Added a backup to floppy utility which can be found in the '/ags' directory
 
 # Dialing Program
+<<<<<<< HEAD
 ### 0.6.5
 * Fixed bug where computer would start dialing a Pegasus Gate on its own
 * Fixed bug when editing of existing gate entry addresses
@@ -12,10 +13,19 @@
 * Added basic iris and shield control
 * Updated Pegasus glyph images
 ### 0.6.4
+=======
+### 0.7.0: IDC Update
+* Added IDC functionality. You can now assign an IDC to your gate, as well as set whether the Iris/Shield should auto close. IDC can also be received by network messages. These options can be changed in the settings menu.
+* Added 'Settings' menu tab, located next the the 'This Stargate's Addresses'.
+* Gate Entries can be given an IDC, and will auto send their IDC when dialing.
+* Changes to the UI when editing a Gate Entry.
+* Various minor performance tweaks.
+### 0.6.4:
+>>>>>>> unstable
 * Added Dialing History
 * Added ability to tag favorite address entries
 * Added ability to move the position of address entries
-### 0.6.3
+### 0.6.3:
 * Added support of Pegasus Stargates
 ### 0.6.1:
 * Adjusted Alteran signal decoding, again

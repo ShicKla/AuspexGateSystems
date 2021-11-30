@@ -1,18 +1,21 @@
 --[[
 Created By: Augur ShicKla
-v1.1.4
+v1.1.5
 ]]--
 
-component = require("component")
-serialization = require("serialization")
-filesystem = require("filesystem")
-shell = require("shell")
-term = require("term")
-unicode = require("unicode")
-gpu = component.gpu
-internet = nil
-HasInternet = component.isAvailable("internet")
+local computer = require("computer")
+local component = require("component")
+local serialization = require("serialization")
+local filesystem = require("filesystem")
+local shell = require("shell")
+local term = require("term")
+local unicode = require("unicode")
+local gpu = component.gpu
+local internet = nil
+local HasInternet = component.isAvailable("internet")
 if HasInternet then internet = require("internet") end
+
+AGSKiosk = nil
 
 local args, opts = shell.parse(...)
 
@@ -28,6 +31,11 @@ else
   BranchURL = "https://raw.githubusercontent.com/ShicKla/AuspexGateSystems/release"
 end
 
+if opts.k then
+  computer.beep()
+  AGSKiosk = true
+end
+
 ReleaseVersionsFile = "/ags/releaseVersions.ff"
 ReleaseVersions = nil
 LocalVersions = nil
@@ -39,7 +47,10 @@ SelfFileName = string.sub(debug.getinfo(2, "S").source, 2)
 
 function initialization()
   displayLogo()
-  if LogoDisplayed then term.setCursor(1, 31) end
+  if LogoDisplayed then
+    term.setViewport(160, 50, 0, 31)
+    -- term.setCursor(1, 31)
+  end
   local yPos = 1
   for line in BranchMsg:gmatch("[^\r\n]+") do
     gpu.set(term.window.width-27, yPos, line)
@@ -318,6 +329,15 @@ readVersionFile()
 if HasInternet then compareVersions() end
 
 print("Launching Dialer")
-dofile("/ags/SG_Dialer.lua")
+if LogoDisplayed then term.setViewport(160,50) end
+if AGSKiosk == true then
+  while true do
+    pcall(function() dofile("/ags/SG_Dialer.lua") end)
+    print("\nRestarting AGS Please Wait")
+    os.sleep(2)
+  end
+else
+  dofile("/ags/SG_Dialer.lua")
+end
 
 shell.setWorkingDirectory(UsersWorkingDir) -- Returns the user back to their original working directory

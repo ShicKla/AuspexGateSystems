@@ -48,8 +48,8 @@ SelfFileName = string.sub(debug.getinfo(2, "S").source, 2)
 function initialization()
   displayLogo()
   if LogoDisplayed then
-    term.setViewport(160, 50, 0, 31)
-    -- term.setCursor(1, 31)
+    -- term.setViewport(160, 50, 0, 31)
+    term.setCursor(1, 31)
   end
   local yPos = 1
   for line in BranchMsg:gmatch("[^\r\n]+") do
@@ -329,7 +329,7 @@ readVersionFile()
 if HasInternet then compareVersions() end
 
 print("Launching Dialer")
-if LogoDisplayed then term.setViewport(160,50) end
+-- if LogoDisplayed then term.setViewport(160,50) end
 if AGSKiosk == true then
   while true do
     pcall(function() dofile("/ags/SG_Dialer.lua") end)

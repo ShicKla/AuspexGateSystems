@@ -1,7 +1,7 @@
 --[[
 Created By: Augur ShicKla
 Special Thanks To: TRC & matousss
-v0.7.0
+v0.7.1
 
 System Requirements:
 Tier 3.5 Memory
@@ -9,7 +9,7 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
-Version = "0.7.0"
+Version = "0.7.1"
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -18,7 +18,7 @@ term = require("term")
 thread = require("thread")
 serialization = require("serialization")
 unicode = require("unicode")
-filesystem = require("filesystem")
+local filesystem = require("filesystem")
 screen = component.screen
 local gpu = component.gpu
 local modem = {}
@@ -96,6 +96,8 @@ local OutgoingIDC = nil
 local ChildThread = {}
 local HasModem = false
 local ModemIDCPort = nil
+local AdminList = {}
+local User = ""
 -- End of Declarations -------------------------------------------------------------
 
 -- Pre-Initialization --------------------------------------------------------------
@@ -184,6 +186,21 @@ end
 readConfig()
 writeConfig()
 -- Config File IO End --------------------------------------------------------------
+
+-- AdminList File IO ---------------------------------------------------------------
+local function readAdminList()
+  if filesystem.exists(shell.getWorkingDirectory().."/adminList.txt") then
+    for line in io.lines("adminList.txt") do
+      table.insert(AdminList, line)
+    end
+  else
+    file = io.open("adminList.txt", "w")
+    file:close()
+  end
+end
+
+readAdminList()
+-- AdminList File IO End -----------------------------------------------------------
 
 -- Button Object -------------------------------------------------------------------
 Button = {}
@@ -280,6 +297,38 @@ end
 -- End of Button Object ------------------------------------------------------------
 
 -- Special Functions ---------------------------------------------------------------
+function alert(msg, lvl)
+  if ChildThread.AlertThread ~= nil then ChildThread.AlertThread:kill() end
+  if lvl >= 0 then
+    ChildThread.AlertThread = thread.create(function()
+        gpu.setForeground(0x000000)
+        if lvl == 0 or lvl == 1 then
+          gpu.setBackground(0x00FF00)
+          if lvl == 1 then computer.beep(1000) end
+        elseif lvl == 2 then
+          computer.beep()
+          gpu.setBackground(0xFFFF00)
+        elseif lvl == 3 then
+          computer.beep(450, 0.5)
+          gpu.setBackground(0xFF0000)
+        end
+        gpu.fill(1, 1, term.window.width, 1, " ")
+        gpu.fill(1, term.window.height, term.window.width, 1, " ")
+        gpu.set ((term.window.width/2)-(unicode.len(msg)/2), 1, msg)
+        gpu.setForeground(0xFFFFFF)
+        gpu.setBackground(0x000000)
+        os.sleep(10)
+        gpu.setForeground(0xFFFFFF)
+        gpu.setBackground(0x000000)
+        gpu.fill(1, 1, term.window.width, 1, " ")
+        gpu.fill(1, term.window.height, term.window.width, 1, " ")
+    end)
+  else
+    gpu.fill(1, 1, term.window.width, 1, " ")
+    gpu.fill(1, term.window.height, term.window.width, 1, " ")
+  end
+end
+
 function GateEntry(ge)
   if ge.gateAddress.UN ~= nil and #ge.gateAddress.UN ~= 0 then
     for i,v in ipairs(ge.gateAddress.UN) do
@@ -528,6 +577,21 @@ function getRealTime()
   return math.floor(filesystem.lastModified("/tmp/.time") / 1000)
 end
 
+local function isAuthorized(name)
+  local authorized = false
+  if #AdminList == 0 then
+    authorized = true
+  else
+    for _,v in ipairs(AdminList) do
+      if string.lower(v) == string.lower(name) then
+        authorized = true
+        break
+      end
+    end
+  end
+  if not authorized then alert("ACCESS DENIED", 2) end
+  return authorized
+end
 -- End of Special Functions --------------------------------------------------------
 
 -- Info Center ---------------------------------------------------------------------
@@ -727,7 +791,11 @@ local function infoExtensionSwitch(mode)
 end
 
 local addressButton = Button.new(47, 43, 0, 0, "This Stargate's Addresses", function() infoExtensionSwitch("ADDRESS") end, false)
-local configButton = Button.new(75, 43, 0, 0, "Settings", function() infoExtensionSwitch("CONFIG") end, false)
+local configButton = Button.new(75, 43, 0, 0, "Settings", function() 
+  if isAuthorized(User) then
+    infoExtensionSwitch("CONFIG")
+  end
+end, false)
 local debugButton = Button.new(86, 43, 0, 0, "Debug", function() infoExtensionSwitch("DEBUG") end, false)
 
 local function toggleDebugMode()
@@ -807,37 +875,7 @@ ChildThread.debugWindowThread = thread.create(function() -- For Debug
   end, debug.traceback)
 end)
 
-function alert(msg, lvl)
-  if ChildThread.AlertThread ~= nil then ChildThread.AlertThread:kill() end
-  if lvl >= 0 then
-    ChildThread.AlertThread = thread.create(function()
-        gpu.setForeground(0x000000)
-        if lvl == 0 or lvl == 1 then
-          gpu.setBackground(0x00FF00)
-          if lvl == 1 then computer.beep(1000) end
-        elseif lvl == 2 then
-          computer.beep()
-          gpu.setBackground(0xFFFF00)
-        elseif lvl == 3 then
-          computer.beep(450, 0.5)
-          gpu.setBackground(0xFF0000)
-        end
-        gpu.fill(1, 1, term.window.width, 1, " ")
-        gpu.fill(1, term.window.height, term.window.width, 1, " ")
-        gpu.set ((term.window.width/2)-(unicode.len(msg)/2), 1, msg)
-        gpu.setForeground(0xFFFFFF)
-        gpu.setBackground(0x000000)
-        os.sleep(10)
-        gpu.setForeground(0xFFFFFF)
-        gpu.setBackground(0x000000)
-        gpu.fill(1, 1, term.window.width, 1, " ")
-        gpu.fill(1, term.window.height, term.window.width, 1, " ")
-    end)
-  else
-    gpu.fill(1, 1, term.window.width, 1, " ")
-    gpu.fill(1, term.window.height, term.window.width, 1, " ")
-  end
-end
+
 -- End of Info Center --------------------------------------------------------------
 
 -- Gate Entries Window -------------------------------------------------------------
@@ -2355,8 +2393,9 @@ local EventListeners = {
   end),
 
   key_down = event.listen("key_down", function(_, keyboardAddress, chr, code, playerName)
+    User = playerName
     table.insert(keyCombo, code)
-    if #keyCombo > 1 and (keyCombo[1] == 29 and keyCombo[2] == 16) then -- Ctrl+Q to Completely Exit
+    if #keyCombo > 1 and (keyCombo[1] == 29 and keyCombo[2] == 16) and isAuthorized(User) then -- Ctrl+Q to Completely Exit
       WasCanceled = true
       MainLoop = false
     end
@@ -2377,9 +2416,11 @@ local EventListeners = {
       alert("TOUCH SCREEN MODE DEACTIVATED", 1)
       screen.setTouchModeInverted(false)
     end
+    User = ""
   end),
 
   touch = event.listen("touch", function(_, screenAddress, x, y, button, playerName)
+    User = playerName
     term.setCursor(0,0)
     if DebugMode then
       gpu.fill(150, 43, 10, 1, " ") -- For Debug
@@ -2392,6 +2433,7 @@ local EventListeners = {
       glyphListWindow.touch(x, y)
       GateEntriesWindow.touch(x, y)
     end
+    User = ""
   end),
 
   scroll = event.listen("scroll", function(_, screenAddress, x, y, direction, playerName)
@@ -2411,8 +2453,10 @@ local EventListeners = {
   -- end),
 
   interruptedEvent = event.listen("interrupted", function()
-    wasTerminated = true
-    MainLoop = false
+    if isAuthorized(User) then
+      wasTerminated = true
+      MainLoop = false
+    end
   end),
 }
 -- End of Event Section ------------------------------------------------------------
@@ -2427,7 +2471,9 @@ buttons = {
     end
   end),
   editButton = Button.new(64, 2, 0, 3, "Edit Entry", function()
-      editGateEntry(GateEntriesWindow.selectedIndex)
+      if isAuthorized(User) then
+        editGateEntry(GateEntriesWindow.selectedIndex)
+      end
   end),
   renameButton = Button.new(47, 5, 23, 3, "", function()
     renameGateEntry(GateEntriesWindow.selectedIndex)
@@ -2445,7 +2491,9 @@ buttons = {
     deleteGateEntry(-1)
   end, false),
   addEntryButton = Button.new(52, 2, 0, 3, "Add Entry", function()
-    addNewGateEntry()
+    if isAuthorized(User) then
+      addNewGateEntry()
+    end
   end),
   abortDialingButton = Button.new(41, 2, 0, 3, "Abort Dialing", function()
     abortDialing()
@@ -2492,7 +2540,9 @@ buttons = {
   end),
 }
 QuitButton = Button.new(1, 41, 0, 3, "Quit", function()
-  MainLoop = false
+  if isAuthorized(User) then
+    MainLoop = false
+  end
 end)
 HelpButton = Button.new(8, 41, 0, 0, "Help", function()
   HelpWindow.toggle()
@@ -2506,7 +2556,9 @@ CloseGateButton = Button.new(15, 41, 0, 3, "Close Gate", function()
   end
 end)
 IrisToggleButton = Button.new(28, 41, 0, 0, " ", function()
-  sg.toggleIris()
+  if isAuthorized(User) then
+    sg.toggleIris()
+  end
 end)
 -- IDCButton = Button.new(126, 41, 0, 0, "IDC", function()
   -- alert("Sending IDC: "..tostring(OutgoingIDC), 1)
@@ -2719,4 +2771,5 @@ if HasModem and ModemIDCPort ~= nil then modem.close(ModemIDCPort) end
 if not HadNoError then io.stderr:write(ErrorMessage) end
 screen.setTouchModeInverted(false)
 if not term.getCursorBlink() then term.setCursorBlink(true) end
+
 

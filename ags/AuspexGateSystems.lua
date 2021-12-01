@@ -53,7 +53,7 @@ function initialization()
   end
   local yPos = 1
   for line in BranchMsg:gmatch("[^\r\n]+") do
-    gpu.set(term.window.width-27, yPos, line)
+    -- gpu.set(term.window.width-27, yPos, line)
     yPos = yPos + 1
   end
   if HasInternet then
@@ -150,11 +150,11 @@ function readVersionFile()
   if opts.d then yPos = 4 end
   local verString = "Launcher: "..LocalVersions.launcher.ver
   if LocalVersions.launcher.dev then verString = verString.." Dev" end
-  gpu.set(term.window.width - unicode.len(verString), yPos, verString)
+  -- gpu.set(term.window.width - unicode.len(verString), yPos, verString)
   if LocalVersions.dialer ~= nil then
     verString = "Dialer: "..LocalVersions.dialer.ver
     if LocalVersions.dialer.dev then verString = verString.." Dev" end
-    gpu.set(term.window.width - unicode.len(verString), yPos+1, verString)
+    -- gpu.set(term.window.width - unicode.len(verString), yPos+1, verString)
   end
 end
 

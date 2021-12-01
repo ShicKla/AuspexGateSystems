@@ -2,22 +2,22 @@
     dialer={
         ver = "0.7.1",
         file = "SG_Dialer.lua",
-        note = {
-[[0.7.1:
- Added basic security via an admin list. Located at /ags/adminList.txt
- Each player name in the adminList.txt file must be on its own separate line.
- Only players whose name is on the list will be able to edit Gate Entries, add
- new Entries, change Settings, and Quit the program.
- All other users will be denied access to the mentioned functions.]],
-[[0.7.0: IDC Update
- Added IDC functionality. You can now assign an IDC to your gate,
-  as well as set whether the Iris/Shield should auto close. IDC can also
-  be received by network messages. These options can be changed in the
-  settings menu.
- Added 'Settings' menu tab, located next the the 'This Stargate's Addresses'.
- Gate Entries can be given an IDC, and will auto send their IDC when dialing.
- Changes to the UI when editing a Gate Entry.
- Various minor performance tweaks.]]},
+        note = {"0.7.1:",
+                " Added basic security via an admin list. Located at /ags/adminList.txt",
+                " Each player name in the adminList.txt file must be on its own separate line.",
+                " Only players whose name is on the list will be able to edit Gate Entries, add",
+                " new Entries, change Settings, and Quit the program.",
+                " All other users will be denied access to the mentioned functions.",
+                "0.7.0: IDC Update",
+                " Added IDC functionality. You can now assign an IDC to your gate,",
+                "  as well as set whether the Iris/Shield should auto close. IDC can also",
+                "  be received by network messages. These options can be changed in the",
+                "  settings menu.",
+                " Added 'Settings' menu tab, located next the the 'This Stargate's Addresses'.",
+                " Gate Entries can be given an IDC, and will auto send their IDC when dialing.",
+                " Changes to the UI when editing a Gate Entry.",
+                " Various minor performance tweaks."
+                },
         manifest = {"/ags/SG_Dialer.lua",
                     "/ags/gateRing.ff",
                     "/ags/glyphsMW.ff",

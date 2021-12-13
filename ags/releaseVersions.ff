@@ -1,6 +1,6 @@
 {
     dialer={
-        ver = "0.7.1",
+        ver = "0.7.2",
         file = "SG_Dialer.lua",
         note = {"0.7.1:",
                 " Added basic security via an admin list. Located at /ags/adminList.txt",

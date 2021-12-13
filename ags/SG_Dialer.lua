@@ -1,7 +1,7 @@
 --[[
 Created By: Augur ShicKla
 Special Thanks To: TRC & matousss
-v0.7.1
+v0.7.2
 
 System Requirements:
 Tier 3.5 Memory
@@ -9,7 +9,7 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
-Version = "0.7.1"
+Version = "0.7.2"
 local component = require("component")
 local computer = require("computer")
 local event = require("event")

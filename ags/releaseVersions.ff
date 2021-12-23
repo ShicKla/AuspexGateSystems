@@ -25,9 +25,9 @@
                     "/ags/glyphsPG.ff"}
     },
     launcher={
-        ver = "1.1.6",
+        ver = "1.1.7",
         file = "AuspexGateSystems.lua",
-        note = {"1.1.6:",
+        note = {"1.1.7:",
                 " Added kiosk mode, and is ran when using the command argument '-k'",
                 " Kiosk mode will force the dialing program to auto restart if it exits",
                 " or crashes.",

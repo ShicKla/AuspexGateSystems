@@ -1,13 +1,8 @@
-# Auspex Gate Systems Launcher
-### 1.1.6:
-* Added kiosk mode, and is ran when using the command argument '-k'.
-* Kiosk mode will force the dialing program to auto restart if it exits or crashes.
-### 1.1.4:
-* Fixed Crash from unicode error
-### 1.1.0:
-* Added a backup to floppy utility which can be found in the '/ags' directory
-
-# Dialing Program
+# Auspex Gate Systems Dialing Program
+### 0.8.0:
+* Added ability to turn on or off admin only access for various functions of the dialer.
+* Fixed issues with using a DHD or handheld dialer to input gate addresses.
+* Various bug fixes and performance adjustments.
 ### 0.7.1:
 * Added basic security via an admin list. Located at /ags/adminList.txt
 * Each player name in the adminList.txt file must be on its own separate line.
@@ -42,3 +37,12 @@
 * Added 'Smart Dialing' System, which dials only the needed glyphs to make a connection.
 * Added Stargate Ring Display
 * Added Touch Screen Mode Toggle 'F4'
+
+# Auspex Gate Systems Launcher
+### 1.1.7:
+* Added kiosk mode, and is ran when using the command argument '-k'.
+* Kiosk mode will force the dialing program to auto restart if it exits or crashes.
+### 1.1.4:
+* Fixed Crash from unicode error
+### 1.1.0:
+* Added a backup to floppy utility which can be found in the '/ags' directory

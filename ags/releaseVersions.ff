@@ -1,6 +1,6 @@
 {
     dialer={
-        ver = "0.8.0",
+        ver = "0.8.1",
         file = "SG_Dialer.lua",
         note = {"0.8.0",
                 " Added ability to turn on or off admin only access for various functions of",

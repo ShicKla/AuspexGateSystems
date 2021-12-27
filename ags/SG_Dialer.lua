@@ -1,7 +1,7 @@
 --[[
 Created By: Augur ShicKla
 Special Thanks To: TRC & matousss
-v0.8.0
+v0.8.1
 
 System Requirements:
 Tier 3.5 Memory
@@ -9,7 +9,7 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
-local Version = "0.8.0"
+local Version = "0.8.1"
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -1771,6 +1771,8 @@ local function completeAddressEntry(adrType)
     if not AddressEntry.entryAccepted then
       alert("ADDRESS ENTRY CANCELED", 1)
     end
+  else
+    AddressEntry.entryAccepted = true
   end
   if AddressEntry.entryAccepted then
     gateEntries[index].gateAddress[adrType] = {}

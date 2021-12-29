@@ -1,7 +1,7 @@
 --[[
 Created By: Augur ShicKla
 Special Thanks To: TRC & matousss
-v0.8.1
+v0.8.2
 
 System Requirements:
 Tier 3.5 Memory
@@ -9,7 +9,7 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
-local Version = "0.8.1"
+local Version = "0.8.2"
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -1936,11 +1936,11 @@ buttons.GEE_adminCheckBox = GateEntryEdit.adminCheckBox
 
 function editGateEntry(index)
   local gateEntry = gateEntries[index]
-  if gateEntry == nil then
-    alert("SELECT A GATE ENTRY TO EDIT", 2)
-    mainInterface()
-    return
-  end
+  -- if gateEntry == nil then
+    -- alert("SELECT A GATE ENTRY TO EDIT", 2)
+    -- mainInterface()
+    -- return
+  -- end
   editGateEntryMode = true
   clearDisplay()
   HelpButton:disable(true)
@@ -2719,12 +2719,16 @@ buttons.dialButton = Button.new(41, 2, 0, 3, "  Dial  ", function()
 end)
 buttons.editButton = Button.new(64, 2, 0, 3, "Edit Entry", function()
   local gateEntry = gateEntries[GateEntriesWindow.selectedIndex]
-  if isAuthorized(User, AdminOnlySettings.EditEntry) then
-    if not gateEntry.AdminOnly then
-      editGateEntry(GateEntriesWindow.selectedIndex)
-    elseif isAuthorized(User) then
-      editGateEntry(GateEntriesWindow.selectedIndex)
+  if gateEntry ~= nil then
+    if isAuthorized(User, AdminOnlySettings.EditEntry) then
+      if not gateEntry.AdminOnly then
+        editGateEntry(GateEntriesWindow.selectedIndex)
+      elseif isAuthorized(User) then
+        editGateEntry(GateEntriesWindow.selectedIndex)
+      end
     end
+  else
+    alert("SELECT A GATE ENTRY TO EDIT", 2)
   end
 end)
 buttons.renameButton = Button.new(47, 5, 23, 3, "", function()

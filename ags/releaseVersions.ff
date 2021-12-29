@@ -1,8 +1,8 @@
 {
     dialer={
-        ver = "0.8.1",
+        ver = "0.8.2",
         file = "SG_Dialer.lua",
-        note = {"0.8.0",
+        note = {"0.8",
                 " Added ability to turn on or off admin only access for various functions of",
                 " the dialer.",
                 " Fixed issues with using a DHD or handheld dialer to input gate addresses.",

@@ -1,7 +1,7 @@
 --[[
 Created By: Augur ShicKla
 Special Thanks To: TRC & matousss
-v0.8.3
+v0.8.4
 
 System Requirements:
 Tier 3.5 Memory
@@ -9,7 +9,7 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
-local Version = "0.8.3"
+local Version = "0.8.4"
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -113,6 +113,8 @@ local User = ""
 local AdminOnlySettings = {Quit = true, AddEntry = true, EditEntry = true, History = true, ToggleIris = true}
 local MiscSettings = {HideLocalAddr = false, LudicrousSpeed = false}
 local AdminDialed = false
+
+local stargate_failed_Handler = function() end
 -- End of Declarations -------------------------------------------------------------
 
 -- Pre-Initialization --------------------------------------------------------------
@@ -403,6 +405,7 @@ end
 
 -- Special Functions ---------------------------------------------------------------
 local function alert(msg, lvl)
+  if lvl == nil or lvl < 0 then lvl = 3 end
   if type(msg) ~= "string" then error("alert() requires a string") end
   if ChildThread.AlertThread ~= nil then ChildThread.AlertThread:kill() end
   if lvl >= 0 then
@@ -416,6 +419,7 @@ local function alert(msg, lvl)
           gpu.setBackground(0xFFFF00)
         elseif lvl == 3 then
           computer.beep(450, 0.5)
+          gpu.setForeground(0xFFFFFF)
           gpu.setBackground(0xFF0000)
         end
         gpu.fill(1, 1, term.window.width, 1, " ")
@@ -1040,7 +1044,8 @@ ChildThread.debugWindowThread = thread.create(function() -- For Debug
       pcall(function() dialedAddress = sg.dialedAddress end)
       if DebugMode then
         gpu.fill(48, 45, 110, 4, " ")
-        gpu.set(48, 45, "DHD_AdrEntryMode: "..tostring(DHD_AdrEntryMode))
+        -- gpu.set(48, 45, "DHD_AdrEntryMode: "..tostring(DHD_AdrEntryMode))
+        gpu.set(48, 45, "ComputerDialingWithDHD: "..tostring(ComputerDialingWithDHD))
         gpu.set(48, 46, "DialingInterlocked: "..tostring(DialingInterlocked))
         -- gpu.set(48, 47, "ComputerDialingInterlocked: "..tostring(ComputerDialingInterlocked))
         gpu.set(48, 47, "adrEntryType: "..tostring(adrEntryType))
@@ -1718,8 +1723,15 @@ function dialNext(dialed)
       event.timer(0.5, function() gateRingDisplay.glyphImage(glyph) end)
     end
     if ComputerDialingWithDHD then
-      local _,result = component.dhd.pressButton(glyph)
-      -- os.sleep()
+      local _,result,msg = component.dhd.pressButton(glyph)
+      if result ~= "dhd_pressed" then
+        if result == "dhd_not_connected" then
+          computer.pushSignal("stargate_failed","",true,result)
+        else
+          component.dhd.pressBRB()
+        end
+        os.exit()
+      end
       if GateType == "PG" or not MiscSettings.LudicrousSpeed then
         os.sleep(0.05)
         while sg.getGateStatus() == "dialing" do os.sleep() end
@@ -1734,7 +1746,6 @@ function dialNext(dialed)
         gateRingDisplay.dialedChevrons(dialed+1, true)
         dialNext(dialed+1)
       end
-      -- computer.pushSignal("stargate_spin_chevron_engaged", nil, true, dialed + 1, ((dialed + 1) == #AddressBuffer), glyph)
     else
       sg.engageSymbol(glyph)
     end
@@ -2508,6 +2519,59 @@ end
 -- End of Gate Ring Display --------------------------------------------------------
 
 -- Event Section -------------------------------------------------------------------
+function stargate_failed_Handler(reason)
+  if reason == nil then return end
+  if GateType == "UN" then UNGateResetting = true end
+  if not AbortingDialing and not DHD_AdrEntryMode and not ComputerDialingWithDHD then
+    if reason == "address_malformed" then
+      alert("UNABLE TO ESTABLISH CONNECTION", 3)
+    elseif reason == "not_enough_power" then
+      alert("NOT ENOUGH POWER TO CONNECT", 3)
+    elseif reason == "aborted" then
+      alert("ABORTED BY HAND DIALER", 2)
+    end
+  end
+  if ComputerDialingWithDHD then
+    if reason == "address_malformed" then
+      alert("UNABLE TO FINISH DIALING. MAKE SURE DHD HAS A DHD GLYPH CRYSTAL", 3)
+    elseif reason == "dhd_not_connected" then
+      alert("DHD IS NOT LINKED TO THE STARGATE",3)
+    end
+  end
+  if not editGateEntryMode then gateRingDisplay.glyphImage() end
+  if DHD_AdrEntryMode then gateRingDisplay.glyphImage() end
+  gateRingDisplay.reset()
+  if DialingInterlocked then DialingInterlocked = false end
+  finishDialing()
+  if not dialerAdrEntryMode and not DHD_AdrEntryMode then
+    glyphListWindow.locked = false
+    glyphListWindow.display()
+  end
+  if DHD_AdrEntryMode and not GoodAddress and #glyphListWindow.selectedGlyphs > 0 then
+    if #glyphListWindow.selectedGlyphs >= 6 then
+      local allGood = true
+      for i,v in ipairs(glyphListWindow.selectedGlyphs) do
+        if v < 1 then
+          allGood = false
+          break
+        end
+      end
+      GoodAddress = allGood
+    end
+    if not GoodAddress then
+      alert("Address is Invalid", 2)
+    end
+  end
+  if GateType == "UN" then
+    thread.create(function()
+      UNGateResetting = true
+      gateRingDisplay.UNreset()
+      UNGateResetting = false
+    end)
+  end
+  if AbortingDialing then AbortingDialing = false end
+end
+
 local EventListeners = {
   stargate_spin_chevron_engaged = event.listen("stargate_spin_chevron_engaged", function(_, _, caller, num, lock, glyph)
     if not ComputerDialingWithDHD then
@@ -2634,50 +2698,7 @@ local EventListeners = {
   end),
 
   stargate_failed = event.listen("stargate_failed", function(_, _, caller, reason)
-    -- alert(tostring(reason), 2)
-    if reason == nil then return end
-    if GateType == "UN" then UNGateResetting = true end
-    if not AbortingDialing and not DHD_AdrEntryMode then
-      if reason == "address_malformed" then
-        alert("UNABLE TO ESTABLISH CONNECTION", 3)
-      elseif reason == "not_enough_power" then
-        alert("NOT ENOUGH POWER TO CONNECT", 3)
-      elseif reason == "aborted" then
-        alert("ABORTED BY HAND DIALER", 2)
-      end
-    end
-    if not editGateEntryMode then gateRingDisplay.glyphImage() end
-    if DHD_AdrEntryMode then gateRingDisplay.glyphImage() end
-    gateRingDisplay.reset()
-    if DialingInterlocked then DialingInterlocked = false end
-    finishDialing()
-    if not dialerAdrEntryMode and not DHD_AdrEntryMode then
-      glyphListWindow.locked = false
-      glyphListWindow.display()
-    end
-    if DHD_AdrEntryMode and not GoodAddress and #glyphListWindow.selectedGlyphs > 0 then
-      if #glyphListWindow.selectedGlyphs >= 6 then
-        local allGood = true
-        for i,v in ipairs(glyphListWindow.selectedGlyphs) do
-          if v < 1 then
-            allGood = false
-            break
-          end
-        end
-        GoodAddress = allGood
-      end
-      if not GoodAddress then
-        alert("Address is Invalid", 2)
-      end
-    end
-    if GateType == "UN" then
-      thread.create(function()
-        UNGateResetting = true
-        gateRingDisplay.UNreset()
-        UNGateResetting = false
-      end)
-    end
-    if AbortingDialing then AbortingDialing = false end
+    stargate_failed_Handler(reason)
   end),
 
   modem_message = event.listen("modem_message", function(_, _, sender, port, _, msg)
@@ -2748,6 +2769,7 @@ local EventListeners = {
       alert("TOUCH SCREEN MODE DEACTIVATED", 1)
       screen.setTouchModeInverted(false)
     end
+    if code == 66 and component.isAvailable("dhd") then component.dhd.pressBRB() end -- For Debug
     User = ""
   end),
 

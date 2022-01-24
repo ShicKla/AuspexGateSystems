@@ -1,7 +1,8 @@
 # Auspex Gate Systems Dialing Program
-### 0.8.0:
+### 0.8.4:
 * Added ability to turn on or off admin only access for various functions of the dialer.
 * Fixed issues with using a DHD or handheld dialer to input gate addresses.
+* Added ability for computer to use DHD to dial.
 * Various bug fixes and performance adjustments.
 ### 0.7.1:
 * Added basic security via an admin list. Located at /ags/adminList.txt

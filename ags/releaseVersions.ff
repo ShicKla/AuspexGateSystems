@@ -1,6 +1,6 @@
 {
     dialer={
-        ver = "0.8.5",
+        ver = "0.8.6",
         file = "SG_Dialer.lua",
         note = {"0.8.5: Added option in settings for using the DHD to dial.",
                 "0.8.4:",
@@ -26,13 +26,13 @@
         ver = "1.1.7",
         file = "AuspexGateSystems.lua",
         note = {"1.1.7:",
-                " Added kiosk mode, and is ran when using the command argument '-k'",
-                " Kiosk mode will force the dialing program to auto restart if it exits",
-                " or crashes.",
+                "* Added kiosk mode, and is ran when using the command argument '-k'",
+                "* Kiosk mode will force the dialing program to auto restart if it exits",
+                "  or crashes.",
                 "1.1.4:",
-                " Fixed Crash from unicode error",
+                "* Fixed Crash from unicode error",
                 "1.1.0:",
-                " Added a backup to floppy utility which can be found in the '/ags' directory"},
+                "* Added a backup to floppy utility which can be found in the '/ags' directory"},
         manifest = {"/ags/AuspexGateSystems.lua",
                     "/ags/AuspexLogo.ff",
                     "/ags/floppyBackup.lua"}

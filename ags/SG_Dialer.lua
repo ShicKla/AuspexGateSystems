@@ -1,7 +1,7 @@
 --[[
 Created By: Augur ShicKla
 Special Thanks To: TRC & matousss
-v0.8.5
+v0.8.6
 
 System Requirements:
 Tier 3.5 Memory
@@ -9,7 +9,7 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
-local Version = "0.8.5"
+local Version = "0.8.6"
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -687,6 +687,7 @@ local function userInput(x, y, maxLength, touchExits, timeoutEnabled)
 end
 
 function updateHistory()
+  if #DialedAddress < 6 then return end
   local adrName = "UNKNOWN"
   local address = {}
   local timeString = os.date("%H:%M %d/%m", getRealTime())..""

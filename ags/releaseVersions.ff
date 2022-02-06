@@ -1,6 +1,6 @@
 {
     dialer={
-        ver = "0.8.6",
+        ver = "0.8.7",
         file = "SG_Dialer.lua",
         note = {"0.8.5: Added option in settings for using the DHD to dial.",
                 "0.8.4:",

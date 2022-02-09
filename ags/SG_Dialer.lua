@@ -1,7 +1,7 @@
 --[[
 Created By: Augur ShicKla
 Special Thanks To: TRC & matousss
-v0.8.8
+v0.8.9
 
 System Requirements:
 Tier 3.5 Memory
@@ -9,7 +9,7 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
-local Version = "0.8.8"
+local Version = "0.8.9"
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -114,7 +114,7 @@ local User = ""
 local AdminOnlySettings = {Quit = true, AddEntry = true, EditEntry = true, History = true, ToggleIris = true}
 local MiscSettings = {HideLocalAddr = false, dialWithDHD = false, LudicrousSpeed = false}
 local HasRedstone = false
-local RS_Settings = {GateCloseSide="north", ChevronEngagedSide="top", WormholeOpenSide="bottom"}
+local RS_Settings = {ExhaustVentSide="north", ChevronEngagedSide="top", WormholeOpenSide="bottom"}
 local AdminDialed = false
 local DialingPaused = false
 
@@ -223,7 +223,7 @@ function OtherSettings(options)
 end
 
 function RedstoneSettings(options)
-  if type(options.GateCloseSide) == "string" then RS_Settings.GateCloseSide = options.GateCloseSide end
+  if type(options.ExhaustVentSide) == "string" then RS_Settings.ExhaustVentSide = options.ExhaustVentSide end
   if type(options.ChevronEngagedSide) == "string" then RS_Settings.ChevronEngagedSide = options.ChevronEngagedSide end
   if type(options.WormholeOpenSide) == "string" then RS_Settings.WormholeOpenSide = options.WormholeOpenSide end
   RedstoneSettings = nil
@@ -1095,7 +1095,8 @@ ChildThread.debugWindowThread = thread.create(function() -- For Debug
         -- gpu.set(120, 45, "UNGateResetting: "..tostring(UNGateResetting))
         gpu.set(120, 45, "manualAdrEntryMode: "..tostring(manualAdrEntryMode))
         gpu.set(120, 46, "editGateEntryMode: "..tostring(editGateEntryMode))
-        gpu.set(120, 47, "addAddressMode: "..tostring(addAddressMode))
+        gpu.set(120, 47, "OutgoingWormhole: "..tostring(OutgoingWormhole))
+        -- gpu.set(120, 47, "addAddressMode: "..tostring(addAddressMode))
         -- gpu.set(120, 47, "DatabaseWriteTimer ID: "..tostring(DatabaseWriteTimer))
         -- gpu.set(120, 46, "IrisState: "..tostring(sg.getIrisState()))
         -- gpu.set(120, 47, "IrisType: "..tostring(IrisType))
@@ -2743,12 +2744,11 @@ local EventListeners = {
   end),
 
   stargate_close = event.listen("stargate_close", function(_, _, caller, reason)
-    if HasRedstone then
-      redstone.setOutput(sides[RS_Settings.GateCloseSide], 15)
-      redstone.setOutput(sides[RS_Settings.WormholeOpenSide], 0)
-    end
-
     local status, err = xpcall(function()
+      if HasRedstone then
+        redstone.setOutput(sides[RS_Settings.WormholeOpenSide], 0)
+      end
+
       if GateType == "UN" and OutgoingWormhole then UNGateResetting = true end
       if not addAddressMode then
         -- if glyphListWindow.selectedGlyphs[#glyphListWindow.selectedGlyphs] < 1 then
@@ -2767,15 +2767,23 @@ local EventListeners = {
   end),
 
   stargate_wormhole_closed_fully = event.listen("stargate_wormhole_closed_fully", function(_, _, caller, isInitiating)
-    OutgoingWormhole = false
-    if HasRedstone then
-      -- alert("Venting")
-      -- redstone.setOutput(sides[RS_Settings.GateCloseSide], 15)
-      event.timer(5, function() redstone.setOutput(sides[RS_Settings.GateCloseSide], 0) end)
+    if not OutgoingWormhole then
+      redstone.setOutput(sides[RS_Settings.ExhaustVentSide], 15)
+      event.timer(3.5, function()
+        redstone.setOutput(sides[RS_Settings.ExhaustVentSide], 0)
+      end)
     end
+
+    OutgoingWormhole = false
     if UNGateResetting then
       gateRingDisplay.UNreset()
       UNGateResetting = false
+      if HasRedstone then
+        redstone.setOutput(sides[RS_Settings.ExhaustVentSide], 15)
+        event.timer(3.5, function()
+          redstone.setOutput(sides[RS_Settings.ExhaustVentSide], 0)
+        end)
+      end
     end
     updateButtons()
     if sg.getIrisState() == "CLOSED" then

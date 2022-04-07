@@ -1,7 +1,7 @@
 --[[
 Created By: Augur ShicKla
 Special Thanks To: TRC & matousss
-v0.8.9
+v0.8.10
 
 System Requirements:
 Tier 3.5 Memory
@@ -9,7 +9,7 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
-local Version = "0.8.9"
+local Version = "0.8.10"
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -91,11 +91,11 @@ ErrorMessage = nil
 OutgoingWormhole = false
 DialingInterlocked = false
 DebugMode = false
-UNGateResetting = false
 RootDrive = nil
 DialedAddress = {}
 IncomingWormhole = false
 GateStatusString, GateStatusBool = nil
+local UNGateResetting = false
 local DHD_AdrEntryMode = false
 local freeMemoryPercent = ""
 local infoExtensionMode = nil
@@ -117,8 +117,7 @@ local HasRedstone = false
 local RS_Settings = {ExhaustVentSide="north", ChevronEngagedSide="top", WormholeOpenSide="bottom"}
 local AdminDialed = false
 local DialingPaused = false
-
-local stargate_failed_Handler = function() end
+local WormholeConnected = false
 -- End of Declarations -------------------------------------------------------------
 
 -- Pre-Initialization --------------------------------------------------------------
@@ -855,7 +854,7 @@ ConfigPage.autoIrisCheckBox = CheckBox.new(64, 46, IrisSettings, "AutoCloseIris"
 
 ConfigPage.changeIDCButton = Button.new(65, 46, 0, 0, "         ", function()
   ConfigPage.changeIDCButton:hide()
-  if not event.cancel(ConfigPage.timer) then alert("FAILED",2) end
+  -- if not event.cancel(ConfigPage.timer) then alert("FAILED",2) end -- For debug
   local newIDC, successful = userInput(66, 47, 9, true, true)
   if successful then
     if newIDC == "" then
@@ -1808,13 +1807,13 @@ local function directAbortDialing()
     _,abortResult = sg.abortDialing()
   end
   -- sg.abortDialing()
-  if AbortingDialing then
-    if GateType == "UN" then
-      alert("ABORTING DIALING... PLEASE WAIT", 2)
-      while sg.getGateStatus() == "dialing_computer" do os.sleep() end
-    end
-    alert("DIALING ABORTED", 2)
-  end
+  -- if AbortingDialing then
+    -- if GateType == "UN" then
+      -- alert("ABORTING DIALING... PLEASE WAIT", 2)
+      -- while sg.getGateStatus() == "dialing_computer" do os.sleep() end
+    -- end
+    -- alert("DIALING ABORTED", 2)
+  -- end
   
   if GateType ~= "UN" then
     gateRingDisplay.glyphImage()
@@ -1825,6 +1824,7 @@ local function directAbortDialing()
     glyphListWindow.display()
     AbortingDialing = false
   end
+  alert("DIALING ABORTED", 2)
 end
 
 function abortDialing()
@@ -1834,7 +1834,8 @@ function abortDialing()
   end
   buttons.abortDialingButton:disable(true)
   AbortingDialing = true
-  if sg.abortDialing ~= nil then -- and GateType ~= "UN" then 
+  -- if sg.abortDialing ~= nil and GateType ~= "UN" then 
+  if sg.abortDialing ~= nil then
     directAbortDialing()
   else
     alert("ABORTING DIALING... PLEASE WAIT", 2)
@@ -1965,7 +1966,6 @@ local function addressEntry(adrType)
 end
 
 local function dhdAddressEntry()
-  alert("", -1)
   DHD_AdrEntryMode = true
   GoodAddress = false
   WasCanceled = false -- Redundant?
@@ -2459,11 +2459,11 @@ function gateRingDisplay.setChevron(num, isEngaged)
   local stateColor = nil
   self.chevronStates[num] = isEngaged
   
-  if num == 7 then
-    if HasRedstone and self.chevronStates[7] and not UNGateResetting then
+  if num == 7 and HasRedstone then
+    if self.chevronStates[7] and not UNGateResetting then
       redstone.setOutput(sides[RS_Settings.WormholeOpenSide], 15)
-    else
-      redstone.setOutput(sides[RS_Settings.WormholeOpenSide], 0)
+    -- else
+      -- redstone.setOutput(sides[RS_Settings.WormholeOpenSide], 0)
     end
   end
 
@@ -2558,15 +2558,21 @@ function gateRingDisplay.dialedChevrons(count, hideImage)
 end
 
 function gateRingDisplay.UNreset()
-  while true do
-    os.sleep(0.05)
-    if sg.getGateStatus() == "dialing" then break end
+  if UNGateResetting then
+    return
   end
+  UNGateResetting = true
+  -- while true do
+    -- os.sleep()
+    -- local status = sg.getGateStatus()
+    -- if status == "dialing" or status == "failing" then break end
+  -- end
   local self = gateRingDisplay
   alert("STARGATE IS RESETTING", 1)
   local sequence = {[1]=7,[2]=1,[3]=2,[4]=3,[5]=8,[6]=9,[7]=4,[8]=5,[9]=6}
   local pos = 1
-  while sg.getGateStatus() == "dialing" do
+  while UNGateResetting do
+    local status,_ = sg.getGateStatus()
     if pos > 9 then pos = 1 end
     self.setChevron(sequence[pos], true)
     os.sleep()
@@ -2579,59 +2585,6 @@ end
 -- End of Gate Ring Display --------------------------------------------------------
 
 -- Event Section -------------------------------------------------------------------
-function stargate_failed_Handler(reason)
-  if reason == nil then return end
-  if GateType == "UN" then UNGateResetting = true end
-  if not AbortingDialing and not DHD_AdrEntryMode and not ComputerDialingWithDHD then
-    if reason == "address_malformed" then
-      alert("UNABLE TO ESTABLISH CONNECTION", 3)
-    elseif reason == "not_enough_power" then
-      alert("NOT ENOUGH POWER TO CONNECT", 3)
-    elseif reason == "aborted" then
-      alert("ABORTED BY HAND DIALER", 2)
-    end
-  end
-  if ComputerDialingWithDHD then
-    if reason == "address_malformed" then
-      alert("UNABLE TO FINISH DIALING. MAKE SURE DHD HAS A DHD GLYPH CRYSTAL", 3)
-    elseif reason == "dhd_not_connected" then
-      alert("DHD IS NOT LINKED TO THE STARGATE",3)
-    end
-  end
-  if not editGateEntryMode then gateRingDisplay.glyphImage() end
-  if DHD_AdrEntryMode then gateRingDisplay.glyphImage() end
-  gateRingDisplay.reset()
-  if DialingInterlocked then DialingInterlocked = false end
-  finishDialing()
-  if not dialerAdrEntryMode and not DHD_AdrEntryMode then
-    glyphListWindow.locked = false
-    glyphListWindow.display()
-  end
-  if DHD_AdrEntryMode and not GoodAddress and #glyphListWindow.selectedGlyphs > 0 then
-    if #glyphListWindow.selectedGlyphs >= 6 then
-      local allGood = true
-      for i,v in ipairs(glyphListWindow.selectedGlyphs) do
-        if v < 1 then
-          allGood = false
-          break
-        end
-      end
-      GoodAddress = allGood
-    end
-    if not GoodAddress then
-      alert("Address is Invalid", 2)
-    end
-  end
-  if GateType == "UN" then
-    thread.create(function()
-      UNGateResetting = true
-      gateRingDisplay.UNreset()
-      UNGateResetting = false
-    end)
-  end
-  if AbortingDialing then AbortingDialing = false end
-end
-
 local EventListeners = {
   stargate_spin_chevron_engaged = event.listen("stargate_spin_chevron_engaged", function(_, _, caller, num, lock, glyph)
     if not ComputerDialingWithDHD then
@@ -2675,15 +2628,16 @@ local EventListeners = {
   
   stargate_incoming_wormhole = event.listen("stargate_incoming_wormhole", function(_, _, caller, dialedAddressSize)
     AddressBuffer = {}
-    -- if HasRedstone then
-      -- redstone.setOutput(sides[RS_Settings.WormholeOpenSide], 15)
-    -- end
+
     if IncomingWormhole == false then
+      IncomingWormhole = true
+      AbortingDialing = true
       if IDC ~= nil and IrisSettings.AutoCloseIris == true and sg.getIrisState() == "OPENED" then
         sg.toggleIris()
       end
-      IncomingWormhole = true
-      AbortingDialing = true
+      if HasRedstone then
+        redstone.setOutput(sides[RS_Settings.WormholeOpenSide], 15)
+      end
       alert("INCOMING WORMHOLE", 2)
       if gateRingDisplay.isActive then
         gateRingDisplay.glyphImage()
@@ -2708,6 +2662,7 @@ local EventListeners = {
 
   stargate_open = event.listen("stargate_open", function(_, _, caller, isInitiating)
     local status, err = xpcall(function()
+      WormholeConnected = true
       event.timer(0.05, function() gateRingDisplay.eventHorizon(true) end)
       -- gateRingDisplay.eventHorizon(true)
       if isInitiating then
@@ -2749,7 +2704,6 @@ local EventListeners = {
         redstone.setOutput(sides[RS_Settings.WormholeOpenSide], 0)
       end
 
-      if GateType == "UN" and OutgoingWormhole then UNGateResetting = true end
       if not addAddressMode then
         -- if glyphListWindow.selectedGlyphs[#glyphListWindow.selectedGlyphs] < 1 then
           -- table.remove(glyphListWindow.selectedGlyphs) -- Redundant?
@@ -2767,32 +2721,62 @@ local EventListeners = {
   end),
 
   stargate_wormhole_closed_fully = event.listen("stargate_wormhole_closed_fully", function(_, _, caller, isInitiating)
-    if not OutgoingWormhole then
-      redstone.setOutput(sides[RS_Settings.ExhaustVentSide], 15)
-      event.timer(3.5, function()
-        redstone.setOutput(sides[RS_Settings.ExhaustVentSide], 0)
-      end)
-    end
-
-    OutgoingWormhole = false
-    if UNGateResetting then
-      gateRingDisplay.UNreset()
-      UNGateResetting = false
-      if HasRedstone then
-        redstone.setOutput(sides[RS_Settings.ExhaustVentSide], 15)
-        event.timer(3.5, function()
-          redstone.setOutput(sides[RS_Settings.ExhaustVentSide], 0)
-        end)
-      end
-    end
-    updateButtons()
     if sg.getIrisState() == "CLOSED" then
       sg.toggleIris()
     end
+    OutgoingWormhole = false
+    if GateType == "UN" then
+      gateRingDisplay.UNreset()
+    end
+    updateButtons()
   end),
 
   stargate_failed = event.listen("stargate_failed", function(_, _, caller, reason)
-    stargate_failed_Handler(reason)
+    if reason == nil then return end
+    if not AbortingDialing and not DHD_AdrEntryMode and not ComputerDialingWithDHD then
+      if reason == "address_malformed" then
+        alert("UNABLE TO ESTABLISH CONNECTION", 3)
+      elseif reason == "not_enough_power" then
+        alert("NOT ENOUGH POWER TO CONNECT", 3)
+      elseif reason == "aborted" then
+        alert("ABORTED BY HAND DIALER", 2)
+      end
+    end
+    if GateType == "UN" and reason ~= "aborted" then
+      gateRingDisplay.UNreset()
+    end
+    if ComputerDialingWithDHD then
+      if reason == "address_malformed" then
+        alert("UNABLE TO FINISH DIALING. MAKE SURE DHD HAS A DHD GLYPH CRYSTAL", 3)
+      elseif reason == "dhd_not_connected" then
+        alert("DHD IS NOT LINKED TO THE STARGATE",3)
+      end
+    end
+    if not editGateEntryMode then gateRingDisplay.glyphImage() end
+    if DHD_AdrEntryMode then gateRingDisplay.glyphImage() end
+    gateRingDisplay.reset()
+    if DialingInterlocked then DialingInterlocked = false end
+    finishDialing()
+    if not dialerAdrEntryMode and not DHD_AdrEntryMode then
+      glyphListWindow.locked = false
+      glyphListWindow.display()
+    end
+    if DHD_AdrEntryMode and not GoodAddress and #glyphListWindow.selectedGlyphs > 0 then
+      if #glyphListWindow.selectedGlyphs >= 6 then
+        local allGood = true
+        for i,v in ipairs(glyphListWindow.selectedGlyphs) do
+          if v < 1 then
+            allGood = false
+            break
+          end
+        end
+        GoodAddress = allGood
+      end
+      if not GoodAddress then
+        alert("Address is Invalid", 2)
+      end
+    end
+    if AbortingDialing then AbortingDialing = false end
   end),
 
   modem_message = event.listen("modem_message", function(_, _, sender, port, _, msg)
@@ -3180,7 +3164,9 @@ local status, err = xpcall(function()
         end
         if GateStatusString == "dialing" and not UNGateResetting and not ComputerDialingWithDHD then --and not DialingInterlocked then
           DialingInterlocked = true
-          if sg.dialedAddress == "[]" then glyphListWindow.reset() end
+          if sg.dialedAddress == "[]" then
+            glyphListWindow.reset()
+          end
         end
         if DialingInterlocked or ComputerDialingInterlocked then
           if not UNGateResetting and not IncomingWormhole then
@@ -3196,6 +3182,16 @@ local status, err = xpcall(function()
           end
         end
         if GateStatusString == "idle" and not ComputerDialingInterlocked then
+          if UNGateResetting then
+            UNGateResetting = false
+            if HasRedstone and WormholeConnected then
+              redstone.setOutput(sides[RS_Settings.ExhaustVentSide], 15)
+              event.timer(3.5, function()
+                redstone.setOutput(sides[RS_Settings.ExhaustVentSide], 0)
+              end)
+            end
+          end
+          WormholeConnected = false
           if DialingInterlocked then
             DialingInterlocked = false
           end
@@ -3231,7 +3227,7 @@ local status, err = xpcall(function()
         end
       end
       freeMemoryPercent = tostring(math.floor((computer.freeMemory()/computer.totalMemory())*100)).."%"
-      os.sleep(0.05)
+      os.sleep()
     end
   end)
 

@@ -1,7 +1,7 @@
 --[[
 Created By: Augur ShicKla
 Special Thanks To: TRC & matousss
-v0.8.10
+v0.8.11
 
 System Requirements:
 Tier 3.5 Memory
@@ -9,7 +9,7 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
-local Version = "0.8.10"
+local Version = "0.8.11"
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -70,7 +70,7 @@ local configFile = "dialer.cfg"
 gateEntries = {}
 historyEntries = {}
 AddressBuffer = {}
-keyCombo = {}
+local keyCombo = {}
 buttons = {}
 ActiveButtons = {}
 gateName = ""
@@ -111,11 +111,12 @@ local ChildThread = {}
 local HasModem = false
 local AdminList = {}
 local User = ""
-local AdminOnlySettings = {Quit = true, AddEntry = true, EditEntry = true, History = true, ToggleIris = true}
+local AdminOnlySettings = {Quit = true, AddEntry = true, EditEntry = true, History = true, ToggleIris = true, AdminCanForceDialDHD = false}
 local MiscSettings = {HideLocalAddr = false, dialWithDHD = false, LudicrousSpeed = false}
 local HasRedstone = false
-local RS_Settings = {ExhaustVentSide="north", ChevronEngagedSide="top", WormholeOpenSide="bottom"}
+local RS_Settings = {ExhaustVentSide="north", ChevronEngagedSide="top", WormholeOpenSide="bottom", GateIsActiveSide="east"}
 local AdminDialed = false
+local ForceDialDHD = false
 local DialingPaused = false
 local WormholeConnected = false
 -- End of Declarations -------------------------------------------------------------
@@ -210,7 +211,7 @@ function AdminAccess(options)
   if type(options.EditEntry) == "boolean" then AdminOnlySettings.EditEntry = options.EditEntry end
   if type(options.History) == "boolean" then AdminOnlySettings.History = options.History end
   if type(options.ToggleIris) == "boolean" then AdminOnlySettings.ToggleIris = options.ToggleIris end
-
+  if type(options.AdminCanForceDialDHD) == "boolean" then AdminOnlySettings.AdminCanForceDialDHD = options.AdminCanForceDialDHD end
   AdminAccess = nil
 end
 
@@ -225,6 +226,7 @@ function RedstoneSettings(options)
   if type(options.ExhaustVentSide) == "string" then RS_Settings.ExhaustVentSide = options.ExhaustVentSide end
   if type(options.ChevronEngagedSide) == "string" then RS_Settings.ChevronEngagedSide = options.ChevronEngagedSide end
   if type(options.WormholeOpenSide) == "string" then RS_Settings.WormholeOpenSide = options.WormholeOpenSide end
+  if type(options.GateIsActiveSide) == "string" then RS_Settings.GateIsActiveSide = options.GateIsActiveSide end
   RedstoneSettings = nil
 end
 
@@ -1316,6 +1318,47 @@ function GateEntriesWindow.display()
   -- gpu.set(1, 42, tostring(gateEntries[self.selectedIndex])) -- For Debug
 end
 
+function GateEntriesWindow.addressInfo()
+  local self = GateEntriesWindow
+  gpu.fill(42,5,35,2," ")
+  if self.index ~= nil and self.selectedIndex > 1 then
+    local gateEntry = nil
+    if self.mode == "database" then
+      gateEntry = gateEntries[self.selectedIndex]
+    elseif self.mode == "history" then
+      gateEntry = historyEntries[self.selectedIndex]
+    end
+    local gateAddress = gateEntry.gateAddress[GateType]
+    if #gateAddress > 0 then
+      local requirement, msg = sg.getEnergyRequiredToDial(table.unpack(gateAddress))
+      local storedEnergy = sg.getEnergyStored()
+      local operatingTicks = (storedEnergy - requirement.open) / requirement.keepAlive
+      local operatingSeconds = math.floor(operatingTicks / 20)
+      gpu.set(42, 5, "Energy to Dial:   ")
+      if requirement.canOpen == false then
+        gpu.setForeground(0xFF0000) -- Red
+      elseif operatingSeconds < 10 then
+        gpu.setForeground(0xFFFF00) -- Yellow
+      else
+        gpu.setForeground(0x00FF00) -- Green
+      end
+      gpu.set(60, 5, requirement.open.." RF")
+      gpu.setForeground(0xFFFFFF)
+      gpu.set(42, 6, "Keep Open Energy: ")
+      if operatingSeconds < 2 then
+        gpu.setForeground(0xFF0000) -- Red
+      elseif operatingSeconds < 5 then
+        gpu.setForeground(0xFF6D00) -- Orange
+      elseif operatingSeconds < 10 then
+        gpu.setForeground(0xFFFF00) -- Yellow
+      else
+        gpu.setForeground(0x00FF00) -- Green
+      end
+      gpu.set(60, 6 , requirement.keepAlive.." RF/t")
+    end
+  end
+end
+
 function GateEntriesWindow.touch(x, y)
   local self = GateEntriesWindow
   if x >= self.xPos and x <= 38 and y >= self.yPos and y <= 40 then
@@ -1352,6 +1395,7 @@ function GateEntriesWindow.touch(x, y)
     updateButtons()
     self.update()
   end
+  self.addressInfo()
 end
 
 function GateEntriesWindow.changePosition(x, y)
@@ -1641,16 +1685,6 @@ end
 -- End of Direct Dialing ----------------------------------------------------------------
 
 -- Address Dialing ----------------------------------------------------------------------
--- dialAddressWindow = {xPos= 42, yPos=5, width= 35, height=2, glyph=""}
--- function dialAddressWindow.display(adr)
-  -- local self = dialAddressWindow
-  -- gpu.fill(self.xPos, self.yPos, self.width, self.height, " ")
-  -- gpu.set(self.xPos, self.yPos, "Dialing: "..adr.name)
-  -- gpu.set(self.xPos, self.yPos+1, "Engaging "..self.glyph.."... ")
--- end
-
-
-
 function dialAddress(gateEntry, num)
   if gateEntry == nil then
     alert("NO GATE ENTRY SELECTED", 2)
@@ -1743,7 +1777,7 @@ function dialNext(dialed)
     -- dialAddressWindow.display(gateEntry) --Deprecated?!
     local glyph = AddressBuffer[dialed + 1]
     -- dialAddressWindow.glyph = glyph --Deprecated?!
-    if component.isAvailable("dhd") and GateType ~= "UN" and MiscSettings.dialWithDHD then
+    if component.isAvailable("dhd") and GateType ~= "UN" and (MiscSettings.dialWithDHD or ForceDialDHD) then
       ComputerDialingWithDHD = true
     end
     glyphListWindow.insertGlyph(glyph)
@@ -1794,6 +1828,7 @@ function finishDialing()
   if ComputerDialingInterlocked then
     ComputerDialingInterlocked = false
     ComputerDialingWithDHD = false
+    ForceDialDHD = false
     isDirectDialing = false
     gpu.fill(41, 2, 38, 5, " ")
     mainInterface("noClear")
@@ -2913,6 +2948,9 @@ buttons.dialButton = Button.new(41, 2, 0, 3, "  Dial  ", function()
   elseif GateEntriesWindow.mode == "history" then
     gateEntry = historyEntries[GateEntriesWindow.selectedIndex]
   end
+  if AdminOnlySettings.AdminCanForceDialDHD and isAuthorized(User) and keyCombo[1] == 29 then
+    ForceDialDHD = true
+  end
   if not gateEntry.AdminOnly then
     dialAddress(gateEntry)
   elseif isAuthorized(User) then
@@ -2991,7 +3029,7 @@ end, false)
 buttons.addressEntry_PG_Button = Button.new(41, 11, 0, 0, "Pegasus", function()
   addressEntry("PG")
 end, false)
-buttons.cancelButton = Button.new(41, 2, 0, 0, "Cancel", function()
+buttons.cancelButton = Button.new(41, 2, 0, 0, "←─Back", function() -- Button.new(41, 2, 0, 0, "Cancel", function()
   glyphListWindow.locked = false
   WasCanceled = true
   manualAdrEntryMode = false
@@ -3162,6 +3200,13 @@ local status, err = xpcall(function()
         elseif not CloseGateButton.disabled then
           CloseGateButton:disable(true)
         end
+        if HasRedstone then
+          if GateStatusString ~= "idle" then
+            redstone.setOutput(sides[RS_Settings.GateIsActiveSide], 15)
+          else
+            redstone.setOutput(sides[RS_Settings.GateIsActiveSide], 0)
+          end
+        end
         if GateStatusString == "dialing" and not UNGateResetting and not ComputerDialingWithDHD then --and not DialingInterlocked then
           DialingInterlocked = true
           if sg.dialedAddress == "[]" then
@@ -3253,11 +3298,17 @@ for k,v in pairs(buttons) do
 end
 buttons = nil
 
+-- Turn off all redstone
+if HasRedstone then
+  for i=0,5,1 do
+    redstone.setOutput(i, 0)
+  end
+end
+
 -- Clean up functions and variables
 GateEntry = nil
 HistoryEntry = nil
 editGateEntry = nil
-
 
 -- Clean up threads
 for k,v in pairs(ChildThread) do

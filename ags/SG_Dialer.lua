@@ -1,7 +1,7 @@
 --[[
 Created By: Augur ShicKla
 Special Thanks To: TRC & matousss
-v0.8.12
+v0.8.13
 
 System Requirements:
 Tier 3.5 Memory
@@ -9,7 +9,7 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
-local Version = "0.8.12"
+local Version = "0.8.13"
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -567,12 +567,11 @@ local function readAddressFile()
 end
 
 local function writeToDatabase()
-  if DatabaseWriteTimer ~= nil then
-    event.cancel(DatabaseWriteTimer)
-    DatabaseWriteTimer = nil
+  local status, value = pcall(function() return ChildThread.databaseWrite:status() end)
+  if status == true then
+    while ChildThread.databaseWrite:status() ~= "dead" do end
   end
-  DatabaseWriteTimer = event.timer(5, function()
-    -- alert("Database Saved", 1) -- For Debug
+  ChildThread.databaseWrite = thread.create(function()
     local file, msg = io.open(DatabaseFile, "w")
     for i,v in ipairs(gateEntries) do
       file:write("GateEntry"..serialization.serialize(v).."\n")
@@ -583,8 +582,26 @@ local function writeToDatabase()
     end
     file:close()
     readAddressFile()
-    DatabaseWriteTimer = nil
   end)
+
+  -- if DatabaseWriteTimer ~= nil then
+    -- event.cancel(DatabaseWriteTimer)
+    -- DatabaseWriteTimer = nil
+  -- end
+  -- DatabaseWriteTimer = event.timer(5, function()
+    -- -- alert("Database Saved", 1) -- For Debug
+    -- local file, msg = io.open(DatabaseFile, "w")
+    -- for i,v in ipairs(gateEntries) do
+      -- file:write("GateEntry"..serialization.serialize(v).."\n")
+    -- end
+    -- file:write("\n")
+    -- for i,v in ipairs(historyEntries) do
+      -- file:write("HistoryEntry"..serialization.serialize(v).."\n")
+    -- end
+    -- file:close()
+    -- readAddressFile()
+    -- DatabaseWriteTimer = nil
+  -- end)
   GateEntriesWindow.update() 
 end
 
@@ -3293,6 +3310,7 @@ HadNoError = status
 -- Closing Procedures --------------------------------------------------------------
 DialingPaused = false
 writeToDatabase()
+while ChildThread.databaseWrite:status() ~= "dead" do end
 term.clear()
 
 -- Clean up buttons

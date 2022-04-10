@@ -1,7 +1,7 @@
 --[[
 Created By: Augur ShicKla
 Special Thanks To: TRC & matousss
-v0.8.11
+v0.8.12
 
 System Requirements:
 Tier 3.5 Memory
@@ -9,7 +9,7 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
-local Version = "0.8.11"
+local Version = "0.8.12"
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -1320,8 +1320,9 @@ end
 
 function GateEntriesWindow.addressInfo()
   local self = GateEntriesWindow
+  if gateRingDisplay.isActive == false then return end
   gpu.fill(42,5,35,2," ")
-  if self.index ~= nil and self.selectedIndex > 1 then
+  if self.selectedIndex ~= nil and self.selectedIndex > 1 then
     local gateEntry = nil
     if self.mode == "database" then
       gateEntry = gateEntries[self.selectedIndex]
@@ -1329,7 +1330,7 @@ function GateEntriesWindow.addressInfo()
       gateEntry = historyEntries[self.selectedIndex]
     end
     local gateAddress = gateEntry.gateAddress[GateType]
-    if #gateAddress > 0 then
+    if gateAddress ~= nil and #gateAddress > 0 then
       local requirement, msg = sg.getEnergyRequiredToDial(table.unpack(gateAddress))
       local storedEnergy = sg.getEnergyStored()
       local operatingTicks = (storedEnergy - requirement.open) / requirement.keepAlive
@@ -1355,6 +1356,7 @@ function GateEntriesWindow.addressInfo()
         gpu.setForeground(0x00FF00) -- Green
       end
       gpu.set(60, 6 , requirement.keepAlive.." RF/t")
+      gpu.setForeground(0xFFFFFF)
     end
   end
 end
@@ -1368,6 +1370,7 @@ function GateEntriesWindow.touch(x, y)
       if (x == 33 or x== 35 or x == 37) and self.mode == "database" then
         self.changePosition(x, y)
       end
+      self.addressInfo()
       self.display()
       updateButtons()
       if self.selectedIndex ~= 0 then
@@ -1392,10 +1395,10 @@ function GateEntriesWindow.touch(x, y)
       self.mode = "history"
     end
     self.selectedIndex = 0
+    self.addressInfo()
     updateButtons()
     self.update()
   end
-  self.addressInfo()
 end
 
 function GateEntriesWindow.changePosition(x, y)
@@ -3201,7 +3204,7 @@ local status, err = xpcall(function()
           CloseGateButton:disable(true)
         end
         if HasRedstone then
-          if GateStatusString ~= "idle" then
+          if GateStatusString ~= "idle" or ComputerDialingInterlocked then
             redstone.setOutput(sides[RS_Settings.GateIsActiveSide], 15)
           else
             redstone.setOutput(sides[RS_Settings.GateIsActiveSide], 0)

@@ -1,7 +1,7 @@
 --[[
 Created By: Augur ShicKla
 Special Thanks To: TRC & matousss
-v0.8.13
+v0.8.14
 
 System Requirements:
 Tier 3.5 Memory
@@ -9,7 +9,7 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
-local Version = "0.8.13"
+local Version = "0.8.14"
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -1348,32 +1348,38 @@ function GateEntriesWindow.addressInfo()
     end
     local gateAddress = gateEntry.gateAddress[GateType]
     if gateAddress ~= nil and #gateAddress > 0 then
-      local requirement, msg = sg.getEnergyRequiredToDial(table.unpack(gateAddress))
-      local storedEnergy = sg.getEnergyStored()
-      local operatingTicks = (storedEnergy - requirement.open) / requirement.keepAlive
-      local operatingSeconds = math.floor(operatingTicks / 20)
-      gpu.set(42, 5, "Energy to Dial:   ")
-      if requirement.canOpen == false then
-        gpu.setForeground(0xFF0000) -- Red
-      elseif operatingSeconds < 10 then
-        gpu.setForeground(0xFFFF00) -- Yellow
+      local requirement = sg.getEnergyRequiredToDial(table.unpack(gateAddress))
+      if type(requirement) == "table" then
+        local storedEnergy = sg.getEnergyStored()
+        local operatingTicks = (storedEnergy - requirement.open) / requirement.keepAlive
+        local operatingSeconds = math.floor(operatingTicks / 20)
+        gpu.set(42, 5, "Energy to Dial:   ")
+        if requirement.canOpen == false then
+          gpu.setForeground(0xFF0000) -- Red
+        elseif operatingSeconds < 10 then
+          gpu.setForeground(0xFFFF00) -- Yellow
+        else
+          gpu.setForeground(0x00FF00) -- Green
+        end
+        gpu.set(60, 5, requirement.open.." RF")
+        gpu.setForeground(0xFFFFFF) -- White
+        gpu.set(42, 6, "Keep Open Energy: ")
+        if operatingSeconds < 2 then
+          gpu.setForeground(0xFF0000) -- Red
+        elseif operatingSeconds < 5 then
+          gpu.setForeground(0xFF6D00) -- Orange
+        elseif operatingSeconds < 10 then
+          gpu.setForeground(0xFFFF00) -- Yellow
+        else
+          gpu.setForeground(0x00FF00) -- Green
+        end
+        gpu.set(60, 6 , requirement.keepAlive.." RF/t")
+        gpu.setForeground(0xFFFFFF) -- White
       else
-        gpu.setForeground(0x00FF00) -- Green
-      end
-      gpu.set(60, 5, requirement.open.." RF")
-      gpu.setForeground(0xFFFFFF)
-      gpu.set(42, 6, "Keep Open Energy: ")
-      if operatingSeconds < 2 then
         gpu.setForeground(0xFF0000) -- Red
-      elseif operatingSeconds < 5 then
-        gpu.setForeground(0xFF6D00) -- Orange
-      elseif operatingSeconds < 10 then
-        gpu.setForeground(0xFFFF00) -- Yellow
-      else
-        gpu.setForeground(0x00FF00) -- Green
+        gpu.set(42, 5, "No Gate Detected at Address")
+        gpu.setForeground(0xFFFFFF) -- White
       end
-      gpu.set(60, 6 , requirement.keepAlive.." RF/t")
-      gpu.setForeground(0xFFFFFF)
     end
   end
 end

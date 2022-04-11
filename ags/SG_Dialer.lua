@@ -1,7 +1,7 @@
 --[[
 Created By: Augur ShicKla
 Special Thanks To: TRC & matousss
-v0.8.14
+v0.8.15
 
 System Requirements:
 Tier 3.5 Memory
@@ -9,7 +9,7 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
-local Version = "0.8.14"
+local Version = "0.8.15"
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -603,6 +603,22 @@ local function writeToDatabase()
     -- DatabaseWriteTimer = nil
   -- end)
   GateEntriesWindow.update() 
+end
+
+local function runPlugin()
+  if io.open("plugin.lua", "r") == nil then
+    return
+  end
+  
+  ChildThread.pluginThread = thread.create(function()
+    local status, err = xpcall(function()
+      dofile("plugin.lua")
+    end, debug.traceback)
+    if err ~= nil then
+      ErrorMessage = "Error in Plugin \n"..err
+    end
+    HadNoError = status
+  end)
 end
 
 local function addressToString(tbl)
@@ -1292,9 +1308,13 @@ function GateEntriesWindow.display()
       displayCount = displayCount + 1
       self.currentIndices[displayCount] = i
       -- gpu.set(3, 2+displayCount, tostring(i)) -- Display Number
-      if i == self.selectedIndex then gpu.setBackground(0x878787) end
+      if i == self.selectedIndex then 
+        gpu.setBackground(0x878787)
+      end
       -- gpu.set(7, 2+displayCount, v) -- Old Position
-      if self.canDial[i] == false then gpu.setForeground(0xB4B4B4) end
+      if self.canDial[i] == false then
+        gpu.setForeground(0xB4B4B4)
+      end
       gpu.set(3, 2+displayCount, v)
       gpu.setBackground(0x000000)
       if self.mode == "database" then
@@ -3301,6 +3321,8 @@ local status, err = xpcall(function()
       os.sleep()
     end
   end)
+
+  runPlugin()
 
   -- Main Loop just to keep AGS alive. --
   while MainLoop and HadNoError do

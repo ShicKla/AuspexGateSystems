@@ -1,7 +1,7 @@
 --[[
 Created By: Augur ShicKla
 Special Thanks To: TRC & matousss
-v0.8.15
+v0.8.16
 
 System Requirements:
 Tier 3.5 Memory
@@ -9,7 +9,7 @@ Tier 3 GPU
 Tier 3 Screen
 ]]--
 
-local Version = "0.8.15"
+local Version = "0.8.16"
 local component = require("component")
 local computer = require("computer")
 local event = require("event")
@@ -1117,8 +1117,8 @@ ChildThread.debugWindowThread = thread.create(function() -- For Debug
         -- gpu.set(48, 45, "DHD_AdrEntryMode: "..tostring(DHD_AdrEntryMode))
         gpu.set(48, 45, "ComputerDialingWithDHD: "..tostring(ComputerDialingWithDHD))
         gpu.set(48, 46, "DialingInterlocked: "..tostring(DialingInterlocked))
-        -- gpu.set(48, 47, "ComputerDialingInterlocked: "..tostring(ComputerDialingInterlocked))
-        gpu.set(48, 47, "adrEntryType: "..tostring(adrEntryType))
+        gpu.set(48, 47, "ComputerDialingInterlocked: "..tostring(ComputerDialingInterlocked))
+        -- gpu.set(48, 47, "adrEntryType: "..tostring(adrEntryType))
         gpu.set(84, 46, "dialerAdrEntryMode: "..tostring(dialerAdrEntryMode))
         gpu.set(84, 45, "glyphListWindow.locked: "..tostring(glyphListWindow.locked))
         gpu.set(48, 48, tostring(dialedAddress))
@@ -1881,6 +1881,11 @@ function finishDialing()
   end
 end
 
+local function IncomingWormholeAbortDialing()
+  pcall(function() ChildThread.computerDialing:kill() end)
+  finishDialing()
+end
+
 local function directAbortDialing()
   if ChildThread.computerDialing ~= nil then ChildThread.computerDialing:kill() end
   local abortResult = ""
@@ -1913,8 +1918,8 @@ function abortDialing()
     alert("Can Not Abort While Dialing is Paused",2)
     return
   end
-  buttons.abortDialingButton:disable(true)
   AbortingDialing = true
+  buttons.abortDialingButton:disable(true)
   -- if sg.abortDialing ~= nil and GateType ~= "UN" then 
   if sg.abortDialing ~= nil then
     directAbortDialing()
@@ -2712,7 +2717,9 @@ local EventListeners = {
 
     if IncomingWormhole == false then
       IncomingWormhole = true
-      AbortingDialing = true
+      if ComputerDialingInterlocked then
+        IncomingWormholeAbortDialing()
+      end
       if IDC ~= nil and IrisSettings.AutoCloseIris == true and sg.getIrisState() == "OPENED" then
         sg.toggleIris()
       end
@@ -3326,7 +3333,7 @@ local status, err = xpcall(function()
 
   -- Main Loop just to keep AGS alive. --
   while MainLoop and HadNoError do
-    os.sleep(0.05)
+    os.sleep(1)
   end
   
 end, debug.traceback)

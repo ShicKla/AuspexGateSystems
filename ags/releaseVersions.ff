@@ -1,8 +1,8 @@
 {
     dialer={
-        ver = "0.8.15",
+        ver = "0.8.16",
         file = "SG_Dialer.lua",
-        note = {"0.8.15: Compatibility fix for updated Universe Stargates",
+        note = {"0.8.16: Compatibility fix for updated Universe Stargates",
                 "0.8.5: Added option in settings for using the DHD to dial.",
                 "0.8.4:",
                 "* Added ability to turn on or off admin only access for various functions of",

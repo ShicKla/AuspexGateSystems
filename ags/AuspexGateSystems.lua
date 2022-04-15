@@ -1,6 +1,6 @@
 --[[
 Created By: Augur ShicKla
-v1.1.9
+v1.1.10
 ]]--
 
 local computer = require("computer")
@@ -220,6 +220,7 @@ local function launcherVersionCheck(forceDownload)
     end
     saveVersionFile()
     shell.setWorkingDirectory(UsersWorkingDir)
+    tty.setViewport(table.unpack(OriginalViewport))
     shell.execute(runString)
     forceExit(true)
   end

@@ -1,6 +1,6 @@
 --[[
 Created By: Augur ShicKla
-v1.1.7
+v1.1.8
 ]]--
 
 local computer = require("computer")
@@ -10,6 +10,7 @@ local filesystem = require("filesystem")
 local shell = require("shell")
 local term = require("term")
 local unicode = require("unicode")
+local tty = require("tty")
 local gpu = component.gpu
 local internet = nil
 local HasInternet = component.isAvailable("internet")
@@ -42,6 +43,15 @@ local UsersWorkingDir = nil
 local DisplayChangeLog = false
 local LogoDisplayed = false
 local SelfFileName = string.sub(debug.getinfo(2, "S").source, 2)
+local OriginalViewport = {tty.getViewport()}
+OriginalViewport[5] = 1
+OriginalViewport[6] = 1
+
+
+local function forceExit(code)
+  if UsersWorkingDir ~= nil then shell.setWorkingDirectory(UsersWorkingDir) end
+  os.exit(code)
+end
 
 local function downloadFile(fileName, verbose)
   if verbose then print("Downloading..."..fileName) end
@@ -90,11 +100,6 @@ local function getReleaseVersions()
   file:close()
 end
 
-local function forceExit(code)
-  if UsersWorkingDir ~= nil then shell.setWorkingDirectory(UsersWorkingDir) end
-  os.exit(code)
-end
-
 local function isVersionGreater(oldVer, newVer)
   local old = {}
   local new = {}
@@ -110,11 +115,13 @@ local function initialization()
   displayLogo()
   if LogoDisplayed then
     -- term.setViewport(160, 50, 0, 31)
-    term.setCursor(1, 31)
+    -- term.setCursor(1, 31)
+    tty.setViewport(180, 20, 0, 30)
   end
   local yPos = 1
   for line in BranchMsg:gmatch("[^\r\n]+") do
-    gpu.set(term.window.width-27, yPos, line)
+    local screenWidth,_ = gpu.getViewport()
+    gpu.set(screenWidth-27, yPos, line)
     yPos = yPos + 1
   end
   if HasInternet then
@@ -177,12 +184,15 @@ local function readVersionFile()
   local yPos = 1
   if opts.d then yPos = 4 end
   local verString = "Launcher: "..LocalVersions.launcher.ver
+  local screenWidth,_ = gpu.getViewport()
   if LocalVersions.launcher.dev then verString = verString.." Dev" end
-  gpu.set(term.window.width - unicode.len(verString), yPos, verString)
+  -- gpu.set(term.window.width - unicode.len(verString), yPos, verString)
+  gpu.set(screenWidth - unicode.len(verString), yPos, verString)
   if LocalVersions.dialer ~= nil then
     verString = "Dialer: "..LocalVersions.dialer.ver
     if LocalVersions.dialer.dev then verString = verString.." Dev" end
-    gpu.set(term.window.width - unicode.len(verString), yPos+1, verString)
+    -- gpu.set(term.window.width - unicode.len(verString), yPos+1, verString)
+    gpu.set(screenWidth - unicode.len(verString), yPos+1, verString)
   end
 end
 
@@ -322,14 +332,15 @@ local function compareVersions()
   end
 end
 
+-- Main Process --
 if not _G.agsAlreadyRunning then
-  _G.agsAlreadyRunning = true
-  
   initialization()
   readVersionFile()
   if HasInternet then compareVersions() end
-  
+
+  _G.agsAlreadyRunning = true
   print("Launching Dialer")
+  tty.setViewport(table.unpack(OriginalViewport))
   if _G.agsKioskMode == true then
     while _G.agsKioskMode do
       pcall(function() dofile("/ags/SG_Dialer.lua") end)

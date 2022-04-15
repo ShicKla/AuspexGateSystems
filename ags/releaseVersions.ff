@@ -18,9 +18,9 @@
                     "/ags/glyphsPG.ff"}
     },
     launcher={
-        ver = "1.1.8",
+        ver = "1.1.9",
         file = "AuspexGateSystems.lua",
-        note = {"1.1.8: AGS logo will not longer scroll with text",
+        note = {"1.1.9: AGS logo will not longer scroll with text",
                 "1.1.7:",
                 "* Added kiosk mode, and is ran when using the command argument '-k'",
                 "* Kiosk mode will force the dialing program to auto restart if it exits",

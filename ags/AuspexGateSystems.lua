@@ -1,6 +1,6 @@
 --[[
 Created By: Augur ShicKla
-v1.1.8
+v1.1.9
 ]]--
 
 local computer = require("computer")
@@ -50,6 +50,7 @@ OriginalViewport[6] = 1
 
 local function forceExit(code)
   if UsersWorkingDir ~= nil then shell.setWorkingDirectory(UsersWorkingDir) end
+  tty.setViewport(table.unpack(OriginalViewport))
   os.exit(code)
 end
 

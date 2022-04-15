@@ -1,6 +1,6 @@
 --[[
 Created By: Augur ShicKla
-v1.1.10
+v1.1.11
 ]]--
 
 local computer = require("computer")
@@ -11,6 +11,7 @@ local shell = require("shell")
 local term = require("term")
 local unicode = require("unicode")
 local tty = require("tty")
+local thread = require("thread")
 local gpu = component.gpu
 local internet = nil
 local HasInternet = component.isAvailable("internet")
@@ -221,7 +222,8 @@ local function launcherVersionCheck(forceDownload)
     saveVersionFile()
     shell.setWorkingDirectory(UsersWorkingDir)
     tty.setViewport(table.unpack(OriginalViewport))
-    shell.execute(runString)
+    local newThread = thread.create(function() shell.execute(runString) end)
+    newThread:detach()
     forceExit(true)
   end
 end

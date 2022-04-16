@@ -1,6 +1,6 @@
 --[[
 Created By: Augur ShicKla
-v1.1.11
+v1.1.12
 ]]--
 
 local computer = require("computer")
@@ -47,6 +47,34 @@ local SelfFileName = string.sub(debug.getinfo(2, "S").source, 2)
 local OriginalViewport = {tty.getViewport()}
 OriginalViewport[5] = 1
 OriginalViewport[6] = 1
+local ReleaseLauncherInstalledWarning = [[
+┌────────────────────────────────────────────────┐
+│Current installed launcher is the Release       │
+│version. Do you want to install the Dev version │
+│of the launcher?                                │
+└────────────────────────────────────────────────┘
+ Yes/No: ]]
+local DevLauncherInstalledWarning = [[
+┌────────────────────────────────────────────────┐
+│Current installed launcher is the Dev version.  │
+│Do you want to install the Release version of   │
+│the launcher?                                   │
+└────────────────────────────────────────────────┘
+ Yes/No: ]]
+local DevDialerInstalledWarning = [[
+┌────────────────────────────────────────────────┐
+│Current installed dialer is the Dev version. Do │
+│you want to install the Release version of the  │
+│dialer?                                         │
+└────────────────────────────────────────────────┘
+ Yes/No: ]]
+local ReleaseDialerInstalledWarning = [[
+┌────────────────────────────────────────────────┐
+│Current installed dialer is the Release version.│
+│Do you want to install the Dev version of the   │
+│dialer?                                         │
+└────────────────────────────────────────────────┘
+ Yes/No: ]]
 
 
 local function forceExit(code)
@@ -213,18 +241,18 @@ local function launcherVersionCheck(forceDownload)
     if not forceDownload then print("Launcher needs to update, please wait.") end
     downloadManifestedFiles(ReleaseVersions.launcher)
     print("Launcher has been updated and will restart")
-    LocalVersions.launcher = ReleaseVersions.launcher
-    local runString = "/ags/AuspexGateSystems.lua"
-    if opts.d then 
-      LocalVersions.launcher.dev = true
-      runString = runString.." -d"
-    end
-    saveVersionFile()
-    shell.setWorkingDirectory(UsersWorkingDir)
-    tty.setViewport(table.unpack(OriginalViewport))
-    local newThread = thread.create(function() shell.execute(runString) end)
-    newThread:detach()
-    forceExit(true)
+    -- LocalVersions.launcher = ReleaseVersions.launcher
+    -- local runString = "/ags/AuspexGateSystems.lua"
+    -- if opts.d then 
+      -- LocalVersions.launcher.dev = true
+      -- runString = runString.." -d"
+    -- end
+    -- saveVersionFile()
+    -- shell.setWorkingDirectory(UsersWorkingDir)
+    -- tty.setViewport(table.unpack(OriginalViewport))
+    -- shell.execute(runString)
+    -- forceExit(true)
+    LauncherNeedsRestart = true
   end
 end
 
@@ -271,13 +299,7 @@ end
 local function compareVersions()
   if opts.d then
     if not LocalVersions.launcher.dev then
-      io.write([[
-┌────────────────────────────────────────────────┐
-│Current installed launcher is the Release       │
-│version. Do you want to install the Dev version │
-│of the launcher?                                │
-└────────────────────────────────────────────────┘
- Yes/No: ]])
+      io.write(ReleaseLauncherInstalledWarning)
       local userInput = io.read("*l")
       if (userInput:lower()):sub(1,1) == "y" then
         launcherVersionCheck(true)
@@ -285,31 +307,20 @@ local function compareVersions()
     else
       launcherVersionCheck()
     end
-    
-    if LocalVersions.dialer ~= nil and not LocalVersions.dialer.dev then
-      io.write([[
-┌────────────────────────────────────────────────┐
-│Current installed dialer is the Release version.│
-│Do you want to install the Dev version of the   │
-│dialer?                                         │
-└────────────────────────────────────────────────┘
- Yes/No: ]])
-      local userInput = io.read("*l")
-      if (userInput:lower()):sub(1,1) == "y" then
-        dialerNewInstall()
+    if not LauncherNeedsRestart then
+      if LocalVersions.dialer ~= nil and not LocalVersions.dialer.dev then
+        io.write(ReleaseDialerInstalledWarning)
+        local userInput = io.read("*l")
+        if (userInput:lower()):sub(1,1) == "y" then
+          dialerNewInstall()
+        end
+      else
+        dialerVersionCheck()
       end
-    else
-      dialerVersionCheck()
     end
   else
     if LocalVersions.launcher.dev then
-      io.write([[
-┌────────────────────────────────────────────────┐
-│Current installed launcher is the Dev version.  │
-│Do you want to install the Release version of   │
-│the launcher?                                   │
-└────────────────────────────────────────────────┘
- Yes/No: ]])
+      io.write(DevLauncherInstalledWarning)
       local userInput = io.read("*l")
       if (userInput:lower()):sub(1,1) == "y" then
         launcherVersionCheck(true)
@@ -317,21 +328,16 @@ local function compareVersions()
     else
       launcherVersionCheck()
     end
-
-    if LocalVersions.dialer ~= nil and LocalVersions.dialer.dev then
-      io.write([[
-┌────────────────────────────────────────────────┐
-│Current installed dialer is the Dev version. Do │
-│you want to install the Release version of the  │
-│dialer?                                         │
-└────────────────────────────────────────────────┘
- Yes/No: ]])
-      local userInput = io.read("*l")
-      if (userInput:lower()):sub(1,1) == "y" then
-        dialerNewInstall()
+    if not LauncherNeedsRestart then
+      if LocalVersions.dialer ~= nil and LocalVersions.dialer.dev then
+        io.write()
+        local userInput = io.read("*l")
+        if (userInput:lower()):sub(1,1) == "y" then
+          dialerNewInstall()
+        end
+      else
+        dialerVersionCheck()
       end
-    else
-      dialerVersionCheck()
     end
   end
 end
@@ -342,23 +348,38 @@ if not _G.agsAlreadyRunning then
   readVersionFile()
   if HasInternet then compareVersions() end
 
-  _G.agsAlreadyRunning = true
-  print("Launching Dialer")
-  tty.setViewport(table.unpack(OriginalViewport))
-  if _G.agsKioskMode == true then
-    while _G.agsKioskMode do
-      pcall(function() dofile("/ags/SG_Dialer.lua") end)
-      if _G.agsKioskMode then
-        print("\nRestarting AGS Please Wait")
-        os.sleep(2)
+  if not LauncherNeedsRestart then
+    _G.agsAlreadyRunning = true
+    print("Launching Dialer")
+    tty.setViewport(table.unpack(OriginalViewport))
+    if _G.agsKioskMode == true then
+      while _G.agsKioskMode do
+        pcall(function() dofile("/ags/SG_Dialer.lua") end)
+        if _G.agsKioskMode then
+          print("\nRestarting AGS Please Wait")
+          os.sleep(2)
+        end
       end
+    else
+      dofile("/ags/SG_Dialer.lua")
     end
-  else
-    dofile("/ags/SG_Dialer.lua")
   end
   
   _G.agsAlreadyRunning = false
   shell.setWorkingDirectory(UsersWorkingDir) -- Returns the user back to their original working directory
+  
+  if LauncherNeedsRestart then
+    LocalVersions.launcher = ReleaseVersions.launcher
+    local runString = "/ags/AuspexGateSystems.lua"
+    if opts.d then 
+      LocalVersions.launcher.dev = true
+      runString = runString.." -d"
+    end
+    saveVersionFile()
+    shell.setWorkingDirectory(UsersWorkingDir)
+    tty.setViewport(table.unpack(OriginalViewport))
+    shell.execute(runString)
+  end
 else
   io.stderr:write("An instance of AGS was already started. If you believe this to be in error, restart the computer.")
 end

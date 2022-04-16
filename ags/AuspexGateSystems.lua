@@ -1,6 +1,6 @@
 --[[
 Created By: Augur ShicKla
-v1.1.12
+v1.1.13
 ]]--
 
 local computer = require("computer")
@@ -369,6 +369,7 @@ if not _G.agsAlreadyRunning then
   shell.setWorkingDirectory(UsersWorkingDir) -- Returns the user back to their original working directory
   
   if LauncherNeedsRestart then
+    LauncherNeedsRestart = false
     LocalVersions.launcher = ReleaseVersions.launcher
     local runString = "/ags/AuspexGateSystems.lua"
     if opts.d then 

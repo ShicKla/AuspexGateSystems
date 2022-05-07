@@ -1,4 +1,6 @@
 # Auspex Gate Systems Dialing Program
+### 0.8.16:
+* Compatibility fix for updated Universe Stargates
 ### 0.8.5:
 * Added ability to turn on or off admin only access for various functions of the dialer.
 * Fixed issues with using a DHD or handheld dialer to input gate addresses.
@@ -40,6 +42,10 @@
 * Added Touch Screen Mode Toggle 'F4'
 
 # Auspex Gate Systems Launcher
+### 1.1.14:
+* Removed access to dev mode, due to abuse
+### 1.1.13:
+* AGS logo will no longer scroll with text
 ### 1.1.7:
 * Added kiosk mode, and is ran when using the command argument '-k'.
 * Kiosk mode will force the dialing program to auto restart if it exits or crashes.

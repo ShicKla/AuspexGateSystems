@@ -1,6 +1,6 @@
 --[[
 Created By: Augur ShicKla
-v1.1.13
+v1.1.14
 ]]--
 
 local computer = require("computer")
@@ -19,23 +19,18 @@ if HasInternet then internet = require("internet") end
 
 local args, opts = shell.parse(...)
 
-term.clear()
 if opts.d then
-  BranchMsg = [[
-┌──────────────────────────┐
-│Launcher Set to Dev Branch│
-└──────────────────────────┘]]
-  BranchURL = "https://raw.githubusercontent.com/ShicKla/AuspexGateSystems/dev"
-else
-  BranchMsg = ""
-  BranchURL = "https://raw.githubusercontent.com/ShicKla/AuspexGateSystems/release"
+  io.stderr:write("AGS Dev mode has been discontinued. Use the released version of AGS")
+  os.exit()
 end
-
+term.clear()
 if opts.k then
   computer.beep()
   _G.agsKioskMode = true
 end
 
+local BranchMsg = ""
+local BranchURL = "https://raw.githubusercontent.com/ShicKla/AuspexGateSystems/release"
 local ReleaseVersionsFile = "/ags/releaseVersions.ff"
 local ReleaseVersions = nil
 local LocalVersions = nil
@@ -141,7 +136,19 @@ local function isVersionGreater(oldVer, newVer)
   return false
 end
 
+local function checkDev()
+  if filesystem.exists("/ags/devmode") then
+    opts.d = true
+    BranchMsg = [[
+┌──────────────────────────┐
+│Launcher Set to Dev Branch│
+└──────────────────────────┘]]
+    BranchURL = "https://raw.githubusercontent.com/ShicKla/AuspexGateSystems/dev"
+  end
+end
+
 local function initialization()
+  checkDev()
   displayLogo()
   if LogoDisplayed then
     -- term.setViewport(160, 50, 0, 31)

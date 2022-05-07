@@ -18,9 +18,9 @@
                     "/ags/glyphsPG.ff"}
     },
     launcher={
-        ver = "1.1.14",
+        ver = "1.1.15",
         file = "AuspexGateSystems.lua",
-        note = {"1.1.14: Removed access to dev mode, due to abuse",
+        note = {"1.1.15: Removed access to dev mode, due to abuse",
                 "1.1.13: AGS logo will no longer scroll with text",
                 "1.1.7:",
                 "* Added kiosk mode, and is ran when using the command argument '-k'",

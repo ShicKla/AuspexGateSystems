@@ -71,6 +71,15 @@ local ReleaseDialerInstalledWarning = [[
 └────────────────────────────────────────────────┘
  Yes/No: ]]
 
+if filesystem.exists("/ags/devmode") then
+  opts.d = true
+  BranchMsg = [[
+┌──────────────────────────┐
+│Launcher Set to Dev Branch│
+└──────────────────────────┘]]
+  BranchURL = "https://raw.githubusercontent.com/ShicKla/AuspexGateSystems/dev"
+end
+
 
 local function forceExit(code)
   if UsersWorkingDir ~= nil then shell.setWorkingDirectory(UsersWorkingDir) end
@@ -137,14 +146,6 @@ local function isVersionGreater(oldVer, newVer)
 end
 
 local function checkDev()
-  if filesystem.exists("/ags/devmode") then
-    opts.d = true
-    BranchMsg = [[
-┌──────────────────────────┐
-│Launcher Set to Dev Branch│
-└──────────────────────────┘]]
-    BranchURL = "https://raw.githubusercontent.com/ShicKla/AuspexGateSystems/dev"
-  end
 end
 
 local function initialization()
@@ -381,7 +382,7 @@ if not _G.agsAlreadyRunning then
     local runString = "/ags/AuspexGateSystems.lua"
     if opts.d then 
       LocalVersions.launcher.dev = true
-      runString = runString.." -d"
+      -- runString = runString.." -d"
     end
     saveVersionFile()
     shell.setWorkingDirectory(UsersWorkingDir)

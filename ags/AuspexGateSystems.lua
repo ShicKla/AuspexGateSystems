@@ -1,6 +1,6 @@
 --[[
 Created By: Augur ShicKla
-v1.1.14
+v1.1.16
 ]]--
 
 local computer = require("computer")
@@ -338,7 +338,7 @@ local function compareVersions()
     end
     if not LauncherNeedsRestart then
       if LocalVersions.dialer ~= nil and LocalVersions.dialer.dev then
-        io.write()
+        io.write(DevDialerInstalledWarning)
         local userInput = io.read("*l")
         if (userInput:lower()):sub(1,1) == "y" then
           dialerNewInstall()

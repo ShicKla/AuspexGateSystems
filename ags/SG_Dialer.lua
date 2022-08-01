@@ -1855,9 +1855,9 @@ function dialNext(dialed)
         while sg.getGateStatus() == "dialing" do os.sleep() end
       end
       if (dialed + 1) == #AddressBuffer then
+        os.sleep(0.1)
         local _,result,msg = component.dhd.pressBRB()
         if result == "dhd_engage" then
-          os.sleep(1)
           gateRingDisplay.eventHorizon(true)
         end
       else
